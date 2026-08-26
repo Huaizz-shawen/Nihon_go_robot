@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+.venv-codex/
+venv/
+env/
+.pytest_cache/
+
+.env
+*.log
+logs/
+nohup.out
+
+# 备份文件：保留在磁盘用于回滚恢复，但不进版本库
+*.bak*
+
+dist/
+build/
+*.egg-info/
+
+# Sphinx 文档构建产物
+docs/_build/
+docs/source/generated/
+venv-docs/

@@ -1,0 +1,10 @@
+.DS_Store
+.nested-git-backup/
+
+**/.env
+**/.venv*/
+**/__pycache__/
+**/.pytest_cache/
+**/logs/
+**/nohup.out
+**/*.bak*
