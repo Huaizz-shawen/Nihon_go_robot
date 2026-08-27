@@ -1,0 +1,62 @@
+sources:
+  japanese_grammar_notes:
+    name: Japanese Grammar Notes
+    role: primary_grammar_curriculum
+    homepage: https://github.com/Ralphbupt/japanese-grammar
+    git_url: https://github.com/Ralphbupt/japanese-grammar.git
+    download_url: https://github.com/Ralphbupt/japanese-grammar/archive/refs/heads/main.tar.gz
+    license: CC-BY-4.0
+    attribution: Japanese Grammar Notes by Ralphbupt
+    enabled_by_default: true
+    update_policy: on_demand
+
+  jmdict:
+    name: JMdict
+    role: canonical_vocabulary
+    homepage: https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project
+    download_url: https://www.edrdg.org/pub/Nihongo/JMdict.gz
+    license: CC-BY-SA-4.0
+    attribution: Electronic Dictionary Research and Development Group (EDRDG)
+    enabled_by_default: false
+    update_policy: monthly
+
+  tatoeba_japanese:
+    name: Tatoeba Japanese detailed sentences
+    role: example_sentences
+    homepage: https://tatoeba.org/en/downloads
+    download_url: https://downloads.tatoeba.org/exports/per_language/jpn/jpn_sentences_detailed.tsv.bz2
+    license: CC-BY-2.0-FR
+    attribution: Tatoeba contributors; retain sentence id and username
+    enabled_by_default: false
+    update_policy: monthly
+
+  tatoeba_mandarin:
+    name: Tatoeba Mandarin Chinese detailed sentences
+    role: example_translations
+    homepage: https://tatoeba.org/en/downloads
+    download_url: https://downloads.tatoeba.org/exports/per_language/cmn/cmn_sentences_detailed.tsv.bz2
+    license: CC-BY-2.0-FR
+    attribution: Tatoeba contributors; retain sentence id and username
+    enabled_by_default: false
+    update_policy: monthly
+
+  tatoeba_links:
+    name: Tatoeba sentence links
+    role: example_pair_mapping
+    homepage: https://tatoeba.org/en/downloads
+    download_url: https://downloads.tatoeba.org/exports/links.tar.bz2
+    license: CC-BY-2.0-FR
+    attribution: Tatoeba contributors
+    enabled_by_default: false
+    update_policy: monthly
+
+  tae_kim:
+    name: Tae Kim's Guide to Japanese Grammar
+    role: optional_secondary_grammar_reference
+    homepage: https://guidetojapanese.org/learn/grammar
+    download_url: null
+    license: CC-BY-NC-SA-3.0-US
+    attribution: Tae Kim
+    enabled_by_default: false
+    update_policy: manual_reference_only
+    note: Not downloaded by the MVP; non-commercial/share-alike terms stay isolated.

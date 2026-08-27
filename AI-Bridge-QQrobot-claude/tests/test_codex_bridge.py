@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
+import json
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+from zoneinfo import ZoneInfo
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +21,11 @@ CODEX_SRC = REPO_ROOT / "packages" / "codex-qq-bridge" / "src"
 if str(CODEX_SRC) not in sys.path:
     sys.path.insert(0, str(CODEX_SRC))
 
-from codex_qq_bridge.app_server import AppServerClient  # noqa: E402
+from codex_qq_bridge.app_server import (  # noqa: E402
+    APP_SERVER_STREAM_LIMIT,
+    AppServerClient,
+    AppServerError,
+)
 from codex_qq_bridge.bridge import (  # noqa: E402
     CodexQQBridge,
     PendingApproval,
@@ -25,6 +33,10 @@ from codex_qq_bridge.bridge import (  # noqa: E402
     attachment_inputs,
     format_token_usage,
     interaction_operator_and_button,
+    group_learner_id_for_openid,
+    heartbeat_sender,
+    learner_id_for_openid,
+    split_daily_lesson_sections,
     prepare_attachment_inputs,
 )
 from codex_qq_bridge.qq_api import QQApi, build_approval_keyboard  # noqa: E402
@@ -71,6 +83,20 @@ class FakeQQ:
         return None
 
 
+class FakeHeartbeatWebSocket:
+    def __init__(self) -> None:
+        self.closed = False
+        self.sent: list[dict[str, Any]] = []
+        self.close_count = 0
+
+    async def send_json(self, payload: dict[str, Any]) -> None:
+        self.sent.append(payload)
+
+    async def close(self) -> None:
+        self.close_count += 1
+        self.closed = True
+
+
 class FakeApp:
     def __init__(self) -> None:
         self.is_running = True
@@ -78,6 +104,8 @@ class FakeApp:
         self.server_request_handler = None
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.thread_list_data: list[dict[str, Any]] = []
+        self.thread_start_ids: list[str] = []
+        self.fail_next_resume_connection = False
 
     async def start(self) -> None:
         self.is_running = True
@@ -88,8 +116,13 @@ class FakeApp:
     async def request(self, method: str, params: dict[str, Any], **kwargs) -> dict[str, Any]:
         self.requests.append((method, params))
         if method == "thread/start":
-            return {"thread": {"id": "thread-new", "cwd": params.get("cwd")}}
+            thread_id = self.thread_start_ids.pop(0) if self.thread_start_ids else "thread-new"
+            return {"thread": {"id": thread_id, "cwd": params.get("cwd")}}
         if method == "thread/resume":
+            if self.fail_next_resume_connection:
+                self.fail_next_resume_connection = False
+                self.is_running = False
+                raise AppServerError("Codex App Server connection closed")
             return {"thread": {"id": params["threadId"], "cwd": params.get("cwd")}}
         if method == "turn/start":
             return {"turn": {"id": "turn-1"}}
@@ -123,8 +156,6 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         if self.bridge._typing_task:
             self.bridge._typing_task.cancel()
-        for task in tuple(self.bridge._stream_tasks):
-            task.cancel()
         self.temp.cleanup()
 
     async def test_master_binds_once_and_cannot_be_taken_over(self) -> None:
@@ -135,6 +166,28 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("MASTER_OPENID=owner", text)
         self.assertNotIn("attacker", text)
         self.assertEqual(self.env.stat().st_mode & 0o777, 0o600)
+
+    async def test_missing_gateway_heartbeat_ack_forces_reconnect(self) -> None:
+        ws = FakeHeartbeatWebSocket()
+        state = {"seq": 42, "heartbeat_acked": False}
+
+        await heartbeat_sender(ws, 0, state)
+
+        self.assertEqual(ws.close_count, 1)
+        self.assertEqual(ws.sent, [])
+
+    async def test_gateway_heartbeat_marks_ack_pending_after_send(self) -> None:
+        ws = FakeHeartbeatWebSocket()
+        state = {"seq": 42, "heartbeat_acked": True}
+        task = asyncio.create_task(heartbeat_sender(ws, 0.01, state))
+
+        while not ws.sent:
+            await asyncio.sleep(0)
+        task.cancel()
+        await task
+
+        self.assertEqual(ws.sent, [{"op": 1, "d": 42}])
+        self.assertIs(state["heartbeat_acked"], False)
 
     async def test_master_is_not_bound_when_persistence_fails(self) -> None:
         self.bridge.env_path = self.root
@@ -174,6 +227,23 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.app.is_running)
         self.assertEqual(self.bridge.state.thread_id, "stored-thread")
         self.assertEqual(self.app.requests[-1][0], "thread/resume")
+        self.assertIs(self.app.requests[-1][1]["excludeTurns"], True)
+
+    async def test_app_server_reader_accepts_json_frames_over_default_limit(self) -> None:
+        client = AppServerClient()
+        reader = asyncio.StreamReader(limit=APP_SERVER_STREAM_LIMIT)
+        client.process = SimpleNamespace(returncode=None, stdout=reader)
+        client._connection_closed = False
+        future = asyncio.get_running_loop().create_future()
+        client._pending[1] = future
+        payload = {"id": 1, "result": {"text": "x" * (128 * 1024)}}
+        reader.feed_data((json.dumps(payload) + "\n").encode())
+        reader.feed_eof()
+
+        await client._read_stdout()
+
+        self.assertEqual(len((await future)["text"]), 128 * 1024)
+        self.assertFalse(client.is_running)
 
     async def test_stop_interrupts_active_turn(self) -> None:
         self.bridge.state.thread_id = "thread-1"
@@ -281,7 +351,7 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         await self.bridge.handle_codex_notification("item/completed", params)
         self.assertEqual([message[1] for message in self.qq.messages], ["done"])
 
-    async def test_agent_deltas_stream_without_repeating_final_text(self) -> None:
+    async def test_agent_deltas_are_buffered_into_one_final_message(self) -> None:
         self.bridge.master_openid = "owner"
         self.bridge.state.thread_id = "thread-1"
         for delta in ("第一段已经生成。\n\n", "第二段也已经生成。"):
@@ -294,7 +364,7 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
                     "delta": delta,
                 },
             )
-        await self.bridge._flush_stream_item("stream-item", force=True)
+        self.assertEqual(self.qq.messages, [])
         await self.bridge.handle_codex_notification(
             "item/completed",
             {
@@ -307,9 +377,42 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
                 },
             },
         )
-        combined = "".join(message[1] for message in self.qq.messages)
-        self.assertEqual(combined, "第一段已经生成。\n\n第二段也已经生成。")
+        self.assertEqual(
+            [message[1] for message in self.qq.messages],
+            ["第一段已经生成。\n\n第二段也已经生成。"],
+        )
         self.assertNotIn("stream-item", self.bridge.stream_replies)
+
+    async def test_group_reply_under_safe_limit_stays_in_one_bubble(self) -> None:
+        self.bridge.state.thread_id = "thread-1"
+        self.bridge.active_reply_target = ReplyTarget(
+            "group", "group-1", msg_id="group-message", member_name="小明"
+        )
+        text = "日" * 1300
+        await self.bridge.handle_codex_notification(
+            "item/agentMessage/delta",
+            {
+                "threadId": "thread-1",
+                "turnId": "turn-1",
+                "itemId": "group-stream-item",
+                "delta": text,
+            },
+        )
+        self.assertEqual(self.qq.group_messages, [])
+        await self.bridge.handle_codex_notification(
+            "item/completed",
+            {
+                "threadId": "thread-1",
+                "turnId": "turn-1",
+                "item": {
+                    "id": "group-stream-item",
+                    "type": "agentMessage",
+                    "text": text,
+                },
+            },
+        )
+        self.assertEqual(len(self.qq.group_messages), 1)
+        self.assertEqual(self.qq.group_messages[0][1], "@小明 " + text)
 
     async def test_media_marker_is_held_until_item_completion(self) -> None:
         self.bridge.master_openid = "owner"
@@ -327,8 +430,7 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
                 "delta": delta,
             },
         )
-        await self.bridge._flush_stream_item("media-item", force=True)
-        self.assertEqual([message[1] for message in self.qq.messages], ["已生成图片。"])
+        self.assertEqual(self.qq.messages, [])
         await self.bridge.handle_codex_notification(
             "item/completed",
             {
@@ -337,6 +439,7 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
                 "item": {"id": "media-item", "type": "agentMessage", "text": delta},
             },
         )
+        self.assertEqual([message[1] for message in self.qq.messages], ["已生成图片。"])
         self.assertNotIn("[[SEND_IMAGE", str(self.qq.messages))
         self.assertEqual(
             self.qq.media, [{"type": "image", "path": str(media_path.resolve())}]
@@ -385,6 +488,27 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([item["type"] for item in inputs], ["text", "image"])
         self.assertTrue(inputs[1]["url"].startswith("data:image/png;base64,"))
 
+    def test_qq_http_client_ignores_environment_proxy_by_default(self) -> None:
+        qq = QQApi("app", "secret")
+        client = object()
+        with patch(
+            "codex_qq_bridge.qq_api.httpx.AsyncClient", return_value=client
+        ) as constructor:
+            self.assertIs(qq._http(), client)
+
+        constructor.assert_called_once_with(
+            timeout=30.0,
+            follow_redirects=True,
+            trust_env=False,
+        )
+
+    def test_qq_http_proxy_inheritance_requires_explicit_opt_in(self) -> None:
+        qq = QQApi("app", "secret", trust_env_proxy=True)
+        with patch("codex_qq_bridge.qq_api.httpx.AsyncClient") as constructor:
+            qq._http()
+
+        self.assertIs(constructor.call_args.kwargs["trust_env"], True)
+
     async def test_group_member_triggers_turn_and_reply_mentions_sender(self) -> None:
         self.bridge.master_openid = "owner"
         self.bridge.state.thread_id = "thread-1"
@@ -398,11 +522,28 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         )
         method, params = self.app.requests[-1]
         self.assertEqual(method, "turn/start")
+        group_thread_id = params["threadId"]
+        self.assertNotEqual(group_thread_id, "thread-1")
+        group_start = next(
+            params
+            for method, params in self.app.requests
+            if method == "thread/start" and params.get("dynamicTools")
+        )
+        self.assertEqual(
+            group_start["dynamicTools"][0]["name"], "publish_daily_lesson"
+        )
+        self.assertIn("只处理日语学习", group_start["developerInstructions"])
+        self.assertIn("政治、暴力、色情", group_start["developerInstructions"])
+        self.assertIn("因此我不能回答", group_start["developerInstructions"])
+        self.assertNotIn("developerInstructions", self.bridge._thread_options())
         self.assertIn("群聊用户 小明", params["input"][0]["text"])
+        self.assertRegex(params["input"][0]["text"], r"learner_id: qq_[0-9a-f]{12}")
+        self.assertRegex(params["input"][0]["text"], r"群课程轨迹 id：group_[0-9a-f]{12}")
+        self.assertNotIn("member-1", params["input"][0]["text"])
         await self.bridge.handle_codex_notification(
             "item/completed",
             {
-                "threadId": "thread-1",
+                "threadId": group_thread_id,
                 "turnId": "turn-1",
                 "item": {"id": "group-item", "type": "agentMessage", "text": "答案"},
             },
@@ -412,6 +553,171 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
             [("group-1", "@小明 答案", "group-message-1")],
         )
         self.assertEqual(self.bridge.master_openid, "owner")
+
+    async def test_different_groups_use_different_persistent_threads(self) -> None:
+        self.app.thread_start_ids = ["group-thread-1", "group-thread-2"]
+        for index in (1, 2):
+            await self.bridge.handle_group_message(
+                {
+                    "id": f"message-{index}",
+                    "group_openid": f"group-{index}",
+                    "content": "こんにちは",
+                    "author": {"member_openid": f"member-{index}", "nickname": "成员"},
+                }
+            )
+        starts = [params for method, params in self.app.requests if method == "turn/start"]
+        self.assertEqual(
+            [params["threadId"] for params in starts],
+            ["group-thread-1", "group-thread-2"],
+        )
+        self.assertEqual(
+            self.bridge.state.groups["group-1"]["thread_id"], "group-thread-1"
+        )
+        self.assertEqual(
+            self.bridge.state.groups["group-2"]["thread_id"], "group-thread-2"
+        )
+
+    async def test_resumed_group_thread_receives_tutor_scope_instructions(self) -> None:
+        self.bridge.state.groups = {
+            "group-1": {
+                "thread_id": "stored-group-thread",
+                "learner_id": "group_test",
+                "active": True,
+            }
+        }
+
+        await self.bridge.handle_group_message(
+            {
+                "id": "group-message-resume",
+                "group_openid": "group-1",
+                "content": "こんにちは",
+                "author": {"member_openid": "member-1", "nickname": "成员"},
+            }
+        )
+
+        resume = next(
+            params for method, params in self.app.requests if method == "thread/resume"
+        )
+        self.assertEqual(resume["threadId"], "stored-group-thread")
+        self.assertIs(resume["excludeTurns"], True)
+        self.assertIn("只处理日语学习", resume["developerInstructions"])
+        self.assertIn("因此我不能回答", resume["developerInstructions"])
+
+    async def test_group_resume_reader_failure_recovers_before_new_thread(self) -> None:
+        self.bridge.state.groups = {
+            "group-1": {
+                "thread_id": "stored-group-thread",
+                "learner_id": "group_test",
+                "active": True,
+            }
+        }
+        self.app.fail_next_resume_connection = True
+        self.app.thread_start_ids = ["private-recovery", "replacement-group-thread"]
+
+        await self.bridge.handle_group_message(
+            {
+                "id": "group-message-recovery",
+                "group_openid": "group-1",
+                "content": "重新发布今天的课程",
+                "author": {"member_openid": "member-1", "nickname": "成员"},
+            }
+        )
+
+        self.assertTrue(self.app.is_running)
+        self.assertEqual(
+            self.bridge.state.groups["group-1"]["thread_id"],
+            "replacement-group-thread",
+        )
+        turn = next(params for method, params in reversed(self.app.requests) if method == "turn/start")
+        self.assertEqual(turn["threadId"], "replacement-group-thread")
+
+    async def test_group_lifecycle_event_registers_and_disables_delivery(self) -> None:
+        self.app.thread_start_ids = ["joined-thread"]
+        await self.bridge.handle_group_added({"group_openid": "joined-group"})
+        entry = self.bridge.state.groups["joined-group"]
+        self.assertEqual(entry["thread_id"], "joined-thread")
+        self.assertTrue(entry["active"])
+
+        await self.bridge.handle_group_removed({"group_openid": "joined-group"})
+        self.assertFalse(entry["active"])
+        self.bridge._generate_group_lesson = AsyncMock()
+        result = await self.bridge.publish_due_daily_lessons(
+            datetime(2026, 8, 26, 9, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+        )
+        self.assertEqual(result, {})
+        self.bridge._generate_group_lesson.assert_not_awaited()
+
+    async def test_daily_lesson_is_one_proactive_bubble_per_section(self) -> None:
+        lesson = self.root / "lesson.md"
+        lesson.write_text(
+            "# Lesson\n\n## 今日复习\n复习\n\n## 今日表达\n表达\n\n"
+            "## 今日语法\n语法\n\n## 今日单词\n单词\n\n## 小练习\n练习\n\n"
+            "## Source\n来源\n",
+            encoding="utf-8",
+        )
+        self.bridge.state.groups = {
+            "group-1": {"learner_id": "group_abc123", "last_lesson_date": None}
+        }
+        self.bridge.daily_message_interval = 0
+        self.bridge._generate_group_lesson = AsyncMock(return_value=lesson)
+        self.bridge._mark_group_lesson_published = AsyncMock()
+
+        result = await self.bridge.publish_due_daily_lessons(
+            datetime(2026, 8, 26, 9, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+        )
+
+        self.assertEqual(result, {"group-1": True})
+        self.assertEqual(len(self.qq.group_messages), 6)
+        self.assertTrue(self.qq.group_messages[0][1].startswith("# Daily Japanese Lesson"))
+        self.assertEqual(
+            [message[1].split("## ", 1)[1].splitlines()[0] for message in self.qq.group_messages],
+            ["今日复习", "今日表达", "今日语法", "今日单词", "小练习", "Source"],
+        )
+        self.assertTrue(all(message[2] == "" for message in self.qq.group_messages))
+        self.assertEqual(
+            self.bridge.state.groups["group-1"]["last_lesson_date"], "2026-08-26"
+        )
+
+        self.qq.group_messages.clear()
+        partial = await self.bridge.publish_group_daily_lesson(
+            "group-1",
+            "2026-08-26",
+            requested_sections=["vocabulary"],
+        )
+        self.assertTrue(partial)
+        self.assertEqual(len(self.qq.group_messages), 1)
+        self.assertIn("## 今日单词", self.qq.group_messages[0][1])
+        self.assertEqual(self.bridge._mark_group_lesson_published.await_count, 1)
+
+    async def test_codex_dynamic_tool_publishes_selected_snapshot_sections(self) -> None:
+        self.bridge.state.groups = {
+            "group-1": {
+                "active": True,
+                "learner_id": "group_abc123",
+                "not_before_date": "2026-08-27",
+            }
+        }
+        self.bridge.thread_to_group["group-thread"] = "group-1"
+        self.bridge.publish_group_daily_lesson = AsyncMock(return_value=True)
+
+        result = await self.bridge.handle_codex_server_request(
+            "item/tool/call",
+            {
+                "threadId": "group-thread",
+                "turnId": "turn-1",
+                "callId": "call-1",
+                "tool": "publish_daily_lesson",
+                "arguments": {"sections": ["vocabulary", "exercises"]},
+            },
+            42,
+        )
+
+        self.assertTrue(result["success"])
+        args = self.bridge.publish_group_daily_lesson.await_args
+        self.assertEqual(args.args[0], "group-1")
+        self.assertEqual(
+            args.kwargs["requested_sections"], ["vocabulary", "exercises"]
+        )
 
     async def test_group_cannot_enable_full_mode_or_send_arbitrary_file(self) -> None:
         target = ReplyTarget(
@@ -454,6 +760,26 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PureFunctionTests(unittest.TestCase):
+    def test_learner_id_is_stable_and_does_not_expose_openid(self) -> None:
+        learner_id = learner_id_for_openid("member-secret-openid")
+        self.assertEqual(learner_id, learner_id_for_openid("member-secret-openid"))
+        self.assertRegex(learner_id, r"^qq_[0-9a-f]{12}$")
+        self.assertNotIn("member-secret-openid", learner_id)
+
+    def test_group_curriculum_id_is_stable_and_pseudonymous(self) -> None:
+        learner_id = group_learner_id_for_openid("raw-group-openid")
+        self.assertEqual(learner_id, group_learner_id_for_openid("raw-group-openid"))
+        self.assertRegex(learner_id, r"^group_[0-9a-f]{12}$")
+        self.assertNotIn("raw-group-openid", learner_id)
+
+    def test_daily_lesson_sections_keep_requested_order(self) -> None:
+        markdown = "# title\n## 今日复习\na\n## 今日表达\nb\n## ignored\nx\n## 小练习\nc"
+        self.assertEqual(
+            [section.splitlines()[0] for section in split_daily_lesson_sections(markdown)],
+            ["## 今日复习", "## 今日表达", "## 小练习"],
+        )
+
+
     def test_attachment_inputs_use_native_image_and_audio_items(self) -> None:
         result = attachment_inputs(
             "inspect",

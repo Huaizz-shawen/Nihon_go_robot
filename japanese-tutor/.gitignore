@@ -1,0 +1,16 @@
+# Downloaded third-party material (reproducible via scripts/download_sources.py)
+knowledge/grammar/japanese-grammar/
+knowledge/raw/
+knowledge/source_snapshots.json
+knowledge/vocabulary/*.sqlite*
+knowledge/examples/*.sqlite*
+
+# Personal learner state and generated lessons stay local.
+learner/data/
+lessons/*/
+
+# Python/tool caches
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]

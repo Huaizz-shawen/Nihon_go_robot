@@ -1,0 +1,12 @@
+version: 1
+learner_id: owner
+display_name: 主人
+level: N5
+locale: zh-CN
+daily:
+  new_grammar: 1
+  vocabulary: 6
+  expressions: 3
+  exercises: 4
+  new_ratio: 0.7
+  review_ratio: 0.3

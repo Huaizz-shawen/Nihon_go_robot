@@ -21,6 +21,10 @@ ServerRequestHandler = Callable[
     [str, dict[str, Any], int | str], Awaitable[dict[str, Any]] | dict[str, Any]
 ]
 
+# App Server uses newline-delimited JSON. Resume responses and tool events can
+# legitimately exceed asyncio's default 64 KiB StreamReader limit.
+APP_SERVER_STREAM_LIMIT = 64 * 1024 * 1024
+
 
 class AppServerError(RuntimeError):
     """Raised when the Codex App Server returns or encounters an error."""
@@ -42,6 +46,7 @@ class AppServerClient:
         self.notification_handler = notification_handler
         self.server_request_handler = server_request_handler
         self.process: asyncio.subprocess.Process | None = None
+        self._connection_closed = True
         self._next_id = 1
         self._pending: dict[int, asyncio.Future[dict[str, Any]]] = {}
         self._write_lock = asyncio.Lock()
@@ -55,7 +60,11 @@ class AppServerClient:
 
     @property
     def is_running(self) -> bool:
-        return self.process is not None and self.process.returncode is None
+        return (
+            self.process is not None
+            and self.process.returncode is None
+            and not self._connection_closed
+        )
 
     async def start(self) -> None:
         """Start App Server and complete its required initialize handshake."""
@@ -63,6 +72,8 @@ class AppServerClient:
             return
         if self.process is not None:
             await self.stop()
+        # Preserve HTTP(S)/ALL_PROXY for Codex and commands it executes. QQ uses
+        # its own clients and disables environment proxy inheritance by default.
         env = os.environ.copy()
         env.pop("TMUX", None)
         env.pop("TMUX_PANE", None)
@@ -74,7 +85,9 @@ class AppServerClient:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
+            limit=APP_SERVER_STREAM_LIMIT,
         )
+        self._connection_closed = False
         self._reader_task = asyncio.create_task(
             self._read_stdout(), name="codex-app-server-stdout"
         )
@@ -92,7 +105,8 @@ class AppServerClient:
                         "name": "codex_qq_bridge",
                         "title": "Codex QQ Bridge",
                         "version": "0.1.0",
-                    }
+                    },
+                    "capabilities": {"experimentalApi": True},
                 },
             )
             await self.notify("initialized", {})
@@ -105,6 +119,7 @@ class AppServerClient:
         """Stop the subprocess and fail outstanding requests."""
         process = self.process
         self.process = None
+        self._connection_closed = True
         tasks = [
             task
             for task in (
@@ -194,6 +209,8 @@ class AppServerClient:
         except Exception as exc:
             self.logger.exception("Codex App Server stdout reader failed: %s", exc)
         finally:
+            if self.process is process:
+                self._connection_closed = True
             if self.process is process and process.returncode is not None:
                 self.logger.error("Codex App Server exited with code %s", process.returncode)
             error = AppServerError("Codex App Server connection closed")

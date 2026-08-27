@@ -161,11 +161,13 @@ class QQApi:
         *,
         logger: logging.Logger | None = None,
         temp_dir: Path | None = None,
+        trust_env_proxy: bool = False,
     ) -> None:
         self.app_id = app_id
         self.client_secret = client_secret
         self.logger = logger or logging.getLogger(__name__)
         self.temp_dir = temp_dir or Path("/tmp/codex-qq-bridge")
+        self.trust_env_proxy = trust_env_proxy
         self._access_token: str | None = None
         self._token_expires_at = 0.0
         self._client: httpx.AsyncClient | None = None
@@ -178,7 +180,11 @@ class QQApi:
 
     def _http(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
+            self._client = httpx.AsyncClient(
+                timeout=30.0,
+                follow_redirects=True,
+                trust_env=self.trust_env_proxy,
+            )
         return self._client
 
     def _next_seq(self, target: str) -> int:
@@ -485,7 +491,11 @@ class QQApi:
         if not upload_id or not parts:
             return None
         offset = 0
-        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as upload_client:
+        async with httpx.AsyncClient(
+            timeout=120.0,
+            follow_redirects=True,
+            trust_env=self.trust_env_proxy,
+        ) as upload_client:
             with path.open("rb") as source:
                 for part in parts:
                     api_index = int(part.get("index", part.get("part_index", 0)))
