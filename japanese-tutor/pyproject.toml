@@ -8,7 +8,11 @@ version = "0.1.0"
 description = "Source-grounded daily Japanese tutor for Codex and the QQ bridge"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["PyYAML>=6.0"]
+dependencies = [
+    "PyYAML>=6.0",
+    "fugashi>=1.5,<2",
+    "unidic-lite>=1.0.8,<2",
+]
 
 [project.scripts]
 nihongo-tutor = "japanese_tutor.cli:main"

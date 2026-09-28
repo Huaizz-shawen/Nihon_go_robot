@@ -118,11 +118,18 @@ def _parse_examples(section: str, source_path: str, item_id: str) -> list[Exampl
 
 
 def _parse_vocabulary(text: str, source_path: str) -> list[VocabularyItem]:
-    heading = re.search(r"^##\s+本课单词表\s*$", text, flags=re.MULTILINE)
+    heading = re.search(
+        r"^##\s+本课单词表(?:\|\|[^\n]*)?\s*$", text, flags=re.MULTILINE
+    )
     if not heading:
         return []
-    end = text.find("\n---", heading.end())
-    body = text[heading.end() : end if end >= 0 else len(text)]
+    next_heading = re.search(r"^##\s+", text[heading.end() :], flags=re.MULTILINE)
+    end = (
+        heading.end() + next_heading.start()
+        if next_heading is not None
+        else len(text)
+    )
+    body = text[heading.end() : end]
     result: list[VocabularyItem] = []
     for line in body.splitlines():
         if not line.strip().startswith("|"):

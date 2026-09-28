@@ -75,6 +75,26 @@ switching, interruption, compaction, context usage, attachments, local file
 delivery, long-reply files, group `@` replies, and automatic App Server recovery. See
 [`packages/codex-qq-bridge/README.md`](packages/codex-qq-bridge/README.md).
 
+An optional Playwright monitor can also watch the first non-pinned post on
+`@AyAsA_violin` every 30 minutes. New posts are turned into a compact group
+learning card containing the timestamp, Japanese original, Chinese translation,
+quoted-post context, key grammar, source link, and up to four original post
+images, then proactively sent to each active QQ group. It uses an isolated,
+locally logged-in Chrome profile, keeps an
+SQLite delivery history to suppress duplicates and resume partial sends, and
+runs independently from the bridge. Original images are downloaded once into
+an owner-only persistent cache and reused for later resends:
+
+```bash
+./start-x-monitor.sh login
+./start-x-monitor.sh once
+./start-x-monitor.sh start
+```
+
+Use `./start-x-monitor.sh test-send` to send the current stored profile post and
+its images to all active groups in the exact production learning format without
+changing normal notification state.
+
 ## Updating
 
 `setup.sh` also installs a global command `ai-bridge-update` into `~/.local/bin`.

@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv-codex"
 PACKAGE_DIR="${SCRIPT_DIR}/packages/codex-qq-bridge"
+TUTOR_DIR="${SCRIPT_DIR}/../japanese-tutor"
 
 if ! command -v codex >/dev/null 2>&1; then
     echo "ERROR: 找不到 codex；请先安装并登录 Codex CLI。" >&2
@@ -27,9 +28,15 @@ fi
 if command -v uv >/dev/null 2>&1; then
     uv venv --python "${PYTHON_BIN}" "${VENV_DIR}"
     uv pip install --python "${VENV_DIR}/bin/python" -e "${PACKAGE_DIR}"
+    if [ -f "${TUTOR_DIR}/pyproject.toml" ]; then
+        uv pip install --python "${VENV_DIR}/bin/python" -e "${TUTOR_DIR}"
+    fi
 else
     "${PYTHON_BIN}" -m venv "${VENV_DIR}"
     "${VENV_DIR}/bin/python" -m pip install -e "${PACKAGE_DIR}"
+    if [ -f "${TUTOR_DIR}/pyproject.toml" ]; then
+        "${VENV_DIR}/bin/python" -m pip install -e "${TUTOR_DIR}"
+    fi
 fi
 
 echo "Codex QQ Bridge 安装完成。"

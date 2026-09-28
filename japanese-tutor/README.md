@@ -19,7 +19,7 @@
 ../AI-Bridge-QQrobot-claude/.venv-codex/bin/python scripts/generate_daily_lesson.py owner
 ```
 
-生成结果在 `lessons/owner/YYYY-MM-DD.md`。每天包含 1 个语法点、5～8 个单词和 3 个表达；每个单词都有日语、假名、中文词性、中文释义与例句。可见来源统一收在末尾 `Source`，精确来源 ID 和答案保存在同名 JSON 中。课程与个人进度默认不进入 Git。
+生成结果在 `lessons/owner/YYYY-MM-DD.md`。每天包含 1 个语法点、5～8 个单词和 3 个表达；每个单词都有日语、假名、中文词性、中文释义与例句。“今日表达”和“今日单词”的例句会把汉字标为 `漢字（かんじ）`，并保留送假名，例如 `眠（ねむ）らなければ`。可见来源统一收在末尾 `Source`，精确来源 ID 和答案保存在同名 JSON 中。课程与个人进度默认不进入 Git。
 
 完成练习后记录结果：
 
@@ -61,7 +61,7 @@ python scripts/record_lesson_result.py qq_MEMBER_ID \
 
 Bridge 会给每个群成员附加稳定、匿名的 `learner_id`。`AGENTS.md` 指示 Codex 用它隔离学习状态；昵称变化不会丢失进度，原始 QQ OpenID 不会写入 learner 文件。群内回复仍会在开头 @ 触发者。
 
-群专属 Codex session 只回答日语学习和课程管理问题。无关问题以及政治、暴力、色情或露骨性内容会收到明确拒绝；该判断由 Codex 根据群 session 的开发者指令完成，不使用关键词硬编码。主人的私聊 session 不受这项群聊范围限制。
+群专属 Codex session 是通用 Agent，同时保留日语学习和课程管理能力。它不会再因为问题与日语无关而拒绝，只对政治、暴力、色情或露骨性内容作明确拒绝；该判断由 Codex 根据群 session 的开发者指令完成，不使用关键词硬编码。主人的私聊 session 不受这项群聊额外限制。
 
 Bridge 在收到机器人入群事件时注册该群并创建干净的群专属 Codex session；若平台漏发事件，首次 @ 消息会兜底初始化。此后每天 `Asia/Shanghai` 09:00 自动生成群共享课程，按“今日复习、今日表达、今日语法、今日单词、小练习、Source”的顺序逐节发送，每个 `##` 是独立气泡。错过 09:00 的服务会在恢复后补发；中途发送失败会从未完成的章节续传，机器人退群后停止推送。
 
@@ -74,6 +74,7 @@ Bridge 在收到机器人入群事件时注册该群并创建干净的群专属 
 - Japanese Grammar Notes：默认下载，CC BY 4.0，主 curriculum 和首节课的语法/中日词表/例句来源。
 - JMdict / EDRDG：可选下载，CC BY-SA 4.0，用于词形、读音、词性和英文释义核验；许可证要求保留署名并提供定期更新流程。
 - Tatoeba：可选下载，CC BY 2.0 FR（部分记录为 CC0），用于日中句对；导入后保留双方 sentence id 与 contributor。
+- UniDic-lite 2.1.2：随 Python 依赖安装，BSD，用于在本地分词并生成汉字的平假名标注；当天课程词表中的标准读音优先。
 - Tae Kim：CC BY-NC-SA 3.0 US。MVP 仅登记为手工二级参考，不自动复制进主知识库。
 
 主语法教材通过 Git sparse checkout 只取 `grammar/` 和许可证等必要文件，因此默认下载。JMdict 与 Tatoeba 数据较大，按需执行：

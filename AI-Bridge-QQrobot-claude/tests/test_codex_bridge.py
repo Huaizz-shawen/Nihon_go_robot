@@ -28,6 +28,8 @@ from codex_qq_bridge.app_server import (  # noqa: E402
 )
 from codex_qq_bridge.bridge import (  # noqa: E402
     CodexQQBridge,
+    GROUP_TOOLSET_VERSION,
+    GroupRuntime,
     PendingApproval,
     ReplyTarget,
     attachment_inputs,
@@ -73,7 +75,14 @@ class FakeQQ:
     async def send_marked_media(self, media, openid: str, *, is_group: bool = False) -> None:
         self.media.extend(media)
 
-    async def send_local_image(self, path: str, openid: str) -> str:
+    async def send_local_image(
+        self,
+        path: str,
+        openid: str,
+        *,
+        is_group: bool = False,
+        msg_id: str = "",
+    ) -> str:
         return f"✅ 图片已发送: {Path(path).name}"
 
     async def send_local_file(self, path: str, openid: str) -> str:
@@ -106,6 +115,7 @@ class FakeApp:
         self.thread_list_data: list[dict[str, Any]] = []
         self.thread_start_ids: list[str] = []
         self.fail_next_resume_connection = False
+        self.config: dict[str, Any] = {}
 
     async def start(self) -> None:
         self.is_running = True
@@ -128,6 +138,8 @@ class FakeApp:
             return {"turn": {"id": "turn-1"}}
         if method == "turn/steer":
             return {"turnId": params["expectedTurnId"]}
+        if method == "config/read":
+            return {"config": self.config, "origins": {}}
         if method == "thread/list":
             return {"data": self.thread_list_data}
         return {}
@@ -219,6 +231,26 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(method, "turn/start")
         self.assertEqual(params["threadId"], "thread-new")
         self.assertEqual(params["approvalPolicy"], "on-request")
+
+    async def test_effective_config_is_applied_to_existing_threads(self) -> None:
+        self.app.config = {
+            "model": "gpt-6-sol",
+            "model_reasoning_effort": "medium",
+        }
+        self.app.is_running = False
+        self.bridge.state.thread_id = "stored-thread"
+
+        await self.bridge.start_turn([{"type": "text", "text": "hello"}], "m-config")
+
+        resume = next(
+            params for method, params in self.app.requests if method == "thread/resume"
+        )
+        turn = next(
+            params for method, params in self.app.requests if method == "turn/start"
+        )
+        self.assertEqual(resume["model"], "gpt-6-sol")
+        self.assertEqual(turn["model"], "gpt-6-sol")
+        self.assertEqual(turn["effort"], "medium")
 
     async def test_runtime_recovers_stored_thread(self) -> None:
         self.bridge.state.thread_id = "stored-thread"
@@ -530,11 +562,17 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
             if method == "thread/start" and params.get("dynamicTools")
         )
         self.assertEqual(
-            group_start["dynamicTools"][0]["name"], "publish_daily_lesson"
+            {tool["name"] for tool in group_start["dynamicTools"]},
+            {"publish_daily_lesson", "publish_latest_x_post"},
         )
-        self.assertIn("只处理日语学习", group_start["developerInstructions"])
+        self.assertIn("QQ 群中的通用 Agent", group_start["developerInstructions"])
+        self.assertIn(
+            "不要仅因为问题与日语学习无关而拒绝",
+            group_start["developerInstructions"],
+        )
         self.assertIn("政治、暴力、色情", group_start["developerInstructions"])
         self.assertIn("因此我不能回答", group_start["developerInstructions"])
+        self.assertIn("AyAsA 最新 X 动态", group_start["developerInstructions"])
         self.assertNotIn("developerInstructions", self.bridge._thread_options())
         self.assertIn("群聊用户 小明", params["input"][0]["text"])
         self.assertRegex(params["input"][0]["text"], r"learner_id: qq_[0-9a-f]{12}")
@@ -576,6 +614,42 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             self.bridge.state.groups["group-2"]["thread_id"], "group-thread-2"
         )
+        self.assertEqual(
+            self.bridge.state.groups["group-1"]["toolset_version"],
+            GROUP_TOOLSET_VERSION,
+        )
+
+    async def test_group_thread_rotates_when_dynamic_toolset_changes(self) -> None:
+        self.bridge.state.groups = {
+            "group-1": {
+                "thread_id": "legacy-group-thread",
+                "learner_id": "group_test",
+                "active": True,
+                "toolset_version": 2,
+            }
+        }
+        self.app.thread_start_ids = ["upgraded-group-thread"]
+
+        await self.bridge.handle_group_message(
+            {
+                "id": "group-message-toolset-upgrade",
+                "group_openid": "group-1",
+                "content": "こんにちは",
+                "author": {"member_openid": "member-1", "nickname": "成员"},
+            }
+        )
+
+        entry = self.bridge.state.groups["group-1"]
+        self.assertEqual(entry["thread_id"], "upgraded-group-thread")
+        self.assertEqual(entry["toolset_version"], GROUP_TOOLSET_VERSION)
+        self.assertEqual(entry["previous_thread_ids"], ["legacy-group-thread"])
+        self.assertFalse(
+            any(
+                method == "thread/resume"
+                and params.get("threadId") == "legacy-group-thread"
+                for method, params in self.app.requests
+            )
+        )
 
     async def test_resumed_group_thread_receives_tutor_scope_instructions(self) -> None:
         self.bridge.state.groups = {
@@ -583,6 +657,7 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
                 "thread_id": "stored-group-thread",
                 "learner_id": "group_test",
                 "active": True,
+                "toolset_version": GROUP_TOOLSET_VERSION,
             }
         }
 
@@ -600,7 +675,8 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(resume["threadId"], "stored-group-thread")
         self.assertIs(resume["excludeTurns"], True)
-        self.assertIn("只处理日语学习", resume["developerInstructions"])
+        self.assertIn("QQ 群中的通用 Agent", resume["developerInstructions"])
+        self.assertNotIn("只处理日语学习", resume["developerInstructions"])
         self.assertIn("因此我不能回答", resume["developerInstructions"])
 
     async def test_group_resume_reader_failure_recovers_before_new_thread(self) -> None:
@@ -609,6 +685,7 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
                 "thread_id": "stored-group-thread",
                 "learner_id": "group_test",
                 "active": True,
+                "toolset_version": GROUP_TOOLSET_VERSION,
             }
         }
         self.app.fail_next_resume_connection = True
@@ -718,6 +795,41 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             args.kwargs["requested_sections"], ["vocabulary", "exercises"]
         )
+
+    async def test_codex_dynamic_tool_publishes_latest_ayasa_post(self) -> None:
+        self.bridge.thread_to_group["group-thread"] = "group-1"
+        runtime = GroupRuntime(
+            active_reply_target=ReplyTarget(
+                "group", "group-1", msg_id="message-x", member_name="小明"
+            )
+        )
+        self.bridge.group_runtimes["group-1"] = runtime
+        self.bridge.publish_latest_x_post = AsyncMock(
+            return_value={
+                "post_id": "2103850875332755953",
+                "text_chunks": 1,
+                "images": 4,
+                "analysis_generated": False,
+            }
+        )
+
+        result = await self.bridge.handle_codex_server_request(
+            "item/tool/call",
+            {
+                "threadId": "group-thread",
+                "turnId": "turn-1",
+                "callId": "call-x",
+                "tool": "publish_latest_x_post",
+                "arguments": {},
+            },
+            43,
+        )
+
+        self.assertTrue(result["success"])
+        self.bridge.publish_latest_x_post.assert_awaited_once_with(
+            "group-1", reply_msg_id="message-x"
+        )
+        self.assertIn("4 image(s)", result["contentItems"][0]["text"])
 
     async def test_group_cannot_enable_full_mode_or_send_arbitrary_file(self) -> None:
         target = ReplyTarget(
@@ -837,9 +949,11 @@ class FakeResponse:
 class FakeRestClient:
     def __init__(self) -> None:
         self.urls: list[str] = []
+        self.json_bodies: list[dict[str, Any] | None] = []
 
     async def post(self, url: str, **kwargs) -> FakeResponse:
         self.urls.append(url)
+        self.json_bodies.append(kwargs.get("json"))
         if url.endswith("/upload_prepare"):
             return FakeResponse(
                 {
@@ -972,6 +1086,31 @@ class QQApiTests(unittest.IsolatedAsyncioTestCase):
             await qq.send_group_text("group-1", "@小明 hello", msg_id="message-1")
         )
         self.assertTrue(any("/v2/groups/group-1/messages" in url for url in rest.urls))
+
+    async def test_group_image_uses_trigger_message_as_reply_reference(self) -> None:
+        qq = QQApi("app", "secret")
+        rest = FakeRestClient()
+        qq._client = rest  # type: ignore[assignment]
+        qq._access_token = "token"
+        qq._token_expires_at = time.time() + 3600
+
+        self.assertTrue(
+            await qq._send_media(
+                "file-info",
+                "group-1",
+                is_group=True,
+                msg_id="message-1",
+            )
+        )
+        message_body = next(
+            body
+            for url, body in zip(rest.urls, rest.json_bodies)
+            if url.endswith("/messages")
+        )
+        self.assertEqual(message_body["msg_id"], "message-1")
+        self.assertEqual(
+            message_body["message_reference"], {"message_id": "message-1"}
+        )
 
     async def test_long_reply_temp_file_is_private_and_removed(self) -> None:
         with tempfile.TemporaryDirectory(prefix="codex-qq-reply-") as directory:

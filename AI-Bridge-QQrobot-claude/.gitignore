@@ -5,6 +5,7 @@ __pycache__/
 .Python
 .venv/
 .venv-codex/
+.runtime/
 venv/
 env/
 .pytest_cache/

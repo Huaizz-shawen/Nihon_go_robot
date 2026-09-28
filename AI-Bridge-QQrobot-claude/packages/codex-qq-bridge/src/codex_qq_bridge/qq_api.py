@@ -548,23 +548,37 @@ class QQApi:
         return result.get("file_info") or result.get("file_uuid")
 
     async def _send_media(
-        self, file_info: str, openid: str, *, is_group: bool = False
+        self,
+        file_info: str,
+        openid: str,
+        *,
+        is_group: bool = False,
+        msg_id: str = "",
     ) -> bool:
         token = await self.token()
         target_path = "groups" if is_group else "users"
+        body: dict[str, Any] = {
+            "msg_type": 7,
+            "media": {"file_info": file_info},
+            "msg_seq": self._next_seq(openid),
+        }
+        if msg_id:
+            body["msg_id"] = msg_id
+            body["message_reference"] = {"message_id": msg_id}
         response = await self._http().post(
             f"{API_BASE}/v2/{target_path}/{openid}/messages",
             headers={"Authorization": f"QQBot {token}"},
-            json={
-                "msg_type": 7,
-                "media": {"file_info": file_info},
-                "msg_seq": self._next_seq(openid),
-            },
+            json=body,
         )
         return response.status_code < 400
 
     async def send_local_image(
-        self, file_path: str, openid: str, *, is_group: bool = False
+        self,
+        file_path: str,
+        openid: str,
+        *,
+        is_group: bool = False,
+        msg_id: str = "",
     ) -> str:
         ok, error = validate_local_file(file_path, _IMAGE_MAX)
         if not ok:
@@ -573,7 +587,7 @@ class QQApi:
             file_path, 1, openid, is_group=is_group
         )
         if file_info and await self._send_media(
-            file_info, openid, is_group=is_group
+            file_info, openid, is_group=is_group, msg_id=msg_id
         ):
             return f"✅ 图片已发送: {Path(file_path).name}"
         return f"❌ 图片发送失败: {Path(file_path).name}"

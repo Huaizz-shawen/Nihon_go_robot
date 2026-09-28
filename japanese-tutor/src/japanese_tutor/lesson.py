@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Any
 
 from .databases import lookup_vocabulary, search_examples
 from .grammar import Example, GrammarPoint, VocabularyItem, load_curriculum
+from .readings import annotate_kanji_readings
 from .storage import (
     append_jsonl,
     learner_dir,
@@ -17,7 +19,13 @@ from .storage import (
     save_progress,
     utc_now,
     write_json,
+    write_yaml,
 )
+
+
+LEVEL_PROGRESSION = {"N5": "N4", "N4": "N3"}
+LESSON_FORMAT_VERSION = 3
+MISSING_EXAMPLE = "当前本地来源未检索到例句"
 
 
 def _due_reviews(progress: dict[str, Any], today: date) -> list[dict[str, Any]]:
@@ -45,6 +53,44 @@ def _matching_example(item: VocabularyItem, examples: list[Example]) -> Example 
         (example for example in examples if any(token in example.japanese for token in tokens)),
         None,
     )
+
+
+def _numbered_source_example(
+    item: VocabularyItem, point: GrammarPoint
+) -> Example | None:
+    """Recover grounded examples from numbered source lines outside 例句 sections."""
+    mode = "neutral"
+    for line_number, raw_line in enumerate(point.raw.splitlines(), 1):
+        stripped = raw_line.strip()
+        if stripped == ":::zh":
+            mode = "zh"
+            continue
+        if stripped == ":::en":
+            mode = "en"
+            continue
+        if stripped == ":::" and mode in {"zh", "en"}:
+            mode = "neutral"
+            continue
+        prefix = re.match(r"^(?:\d+[.)]|[ABＡＢ][：:])\s*", stripped)
+        if mode == "en" or prefix is None:
+            continue
+        cleaned = stripped[prefix.end() :]
+        cleaned = cleaned.replace("**", "").replace("`", "").strip()
+        match = re.match(r"(.+?)[（(]([^（）()]*)[）)](?:\s*.*)?$", cleaned)
+        if match:
+            japanese, chinese = match.group(1).strip(), match.group(2).strip()
+        else:
+            japanese, chinese = cleaned, ""
+        if not re.search(r"[ぁ-んァ-ヶ一-龯]", japanese):
+            continue
+        if not any(token in japanese for token in _word_tokens(item.word)):
+            continue
+        return Example(
+            japanese=japanese,
+            chinese=chinese,
+            source_id=f"{point.source_path}#{point.item_id}:line-{line_number}",
+        )
+    return None
 
 
 def _select_vocabulary(
@@ -77,7 +123,7 @@ def _select_vocabulary(
 def _select_examples(point: GrammarPoint, vocabulary: list[VocabularyItem], count: int) -> list[Example]:
     selected: list[Example] = []
     seen: set[str] = set()
-    for item in vocabulary[:3]:
+    for item in vocabulary:
         for row in search_examples(item.word, limit=4):
             japanese = str(row["japanese"])
             if japanese in seen:
@@ -140,6 +186,9 @@ def _vocabulary_example(item: VocabularyItem, point: GrammarPoint) -> Example | 
     grounded = _matching_example(item, point.reference_examples)
     if grounded:
         return grounded
+    grounded = _numbered_source_example(item, point)
+    if grounded:
+        return grounded
     for token in _word_tokens(item.word):
         rows = search_examples(token, limit=5)
         if rows:
@@ -157,6 +206,7 @@ def _vocabulary_rows(
     items: list[VocabularyItem], point: GrammarPoint, learned_items: set[str]
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
+    reading_overrides = {entry.word: entry.reading for entry in point.vocabulary}
     for item in items:
         matches = lookup_vocabulary(item.word)
         exact = next((row for row in matches if row["reading"] == item.reading), None)
@@ -171,11 +221,89 @@ def _vocabulary_rows(
                 "jmdict_meanings_en": exact["meanings"][:3] if exact else [],
                 "is_new": item.item_id not in learned_items,
                 "example_japanese": example.japanese if example else "",
+                "example_japanese_annotated": (
+                    annotate_kanji_readings(example.japanese, reading_overrides)
+                    if example
+                    else ""
+                ),
                 "example_chinese": example.chinese if example else "",
                 "example_source": example.source_id if example else "",
             }
         )
     return result
+
+
+def _metadata_reading_overrides(metadata: dict[str, Any]) -> dict[str, str]:
+    vocabulary = metadata.get("vocabulary")
+    if not isinstance(vocabulary, list):
+        return {}
+    return {
+        str(item.get("word")): str(item.get("reading"))
+        for item in vocabulary
+        if isinstance(item, dict) and item.get("word") and item.get("reading")
+    }
+
+
+def _annotate_snapshot_markdown(
+    markdown: str, reading_overrides: dict[str, str]
+) -> str:
+    section = ""
+    rendered: list[str] = []
+    for line in markdown.splitlines():
+        if line.startswith("## "):
+            section = line[3:].strip()
+        if section == "今日表达":
+            match = re.match(r"^(\d+\.\s+)(.+)$", line)
+            if match:
+                line = match.group(1) + annotate_kanji_readings(
+                    match.group(2), reading_overrides
+                )
+        elif section == "今日单词" and line.startswith("   - 例句："):
+            prefix, sentence = line.split("：", 1)
+            if sentence and sentence != MISSING_EXAMPLE:
+                line = prefix + "：" + annotate_kanji_readings(
+                    sentence, reading_overrides
+                )
+        rendered.append(line)
+    return "\n".join(rendered) + ("\n" if markdown.endswith("\n") else "")
+
+
+def _upgrade_lesson_readings(markdown_path: Path, metadata_path: Path) -> None:
+    """Apply a deterministic reading-only format migration to old snapshots."""
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError):
+        return
+    if (
+        not isinstance(metadata, dict)
+        or int(metadata.get("version", 1)) >= LESSON_FORMAT_VERSION
+    ):
+        return
+    overrides = _metadata_reading_overrides(metadata)
+    markdown = markdown_path.read_text(encoding="utf-8")
+    markdown_path.write_text(
+        _annotate_snapshot_markdown(markdown, overrides), encoding="utf-8"
+    )
+    vocabulary = metadata.get("vocabulary")
+    if isinstance(vocabulary, list):
+        for item in vocabulary:
+            if not isinstance(item, dict):
+                continue
+            sentence = str(item.get("example_japanese") or "")
+            item["example_japanese_annotated"] = (
+                annotate_kanji_readings(sentence, overrides) if sentence else ""
+            )
+    examples = metadata.get("examples")
+    if isinstance(examples, list):
+        for example in examples:
+            if not isinstance(example, dict):
+                continue
+            sentence = str(example.get("japanese") or "")
+            example["japanese_annotated"] = (
+                annotate_kanji_readings(sentence, overrides) if sentence else ""
+            )
+    metadata["version"] = LESSON_FORMAT_VERSION
+    write_json(metadata_path, metadata)
 
 
 def _build_exercises(
@@ -234,6 +362,23 @@ def _build_exercises(
     return candidates[:count]
 
 
+def _select_curriculum_point(
+    profile: dict[str, Any], progress: dict[str, Any]
+) -> tuple[str, GrammarPoint]:
+    """Select the next point, promoting completed N5/N4 curricula automatically."""
+    level = str(profile.get("level", "N5")).upper()
+    learned = set(progress.get("grammar", {}).get("learned", []))
+    while True:
+        curriculum = load_curriculum(level)
+        point = next((item for item in curriculum if item.item_id not in learned), None)
+        if point is not None:
+            return level, point
+        next_level = LEVEL_PROGRESSION.get(level)
+        if next_level is None:
+            return level, curriculum[0]
+        level = next_level
+
+
 def generate_lesson(
     learner_id: str,
     *,
@@ -245,19 +390,25 @@ def generate_lesson(
     markdown_path = output_dir / f"{today.isoformat()}.md"
     metadata_path = output_dir / f"{today.isoformat()}.json"
     if markdown_path.exists() and metadata_path.exists() and not force:
+        _upgrade_lesson_readings(markdown_path, metadata_path)
         return markdown_path
 
     profile, progress = load_learner(learner_id)
-    curriculum = load_curriculum(str(profile.get("level", "N5")))
+    level, point = _select_curriculum_point(profile, progress)
     learned = set(progress.get("grammar", {}).get("learned", []))
     learned_vocabulary = set(progress.get("vocabulary", {}).get("learned", []))
-    point = next((item for item in curriculum if item.item_id not in learned), curriculum[0])
+    profile_level = str(profile.get("level", "N5"))
+    if profile_level != level:
+        profile = dict(profile)
+        profile["level"] = level
+        write_yaml(learner_dir(learner_id) / "profile.yaml", profile)
     daily = profile.get("daily", {})
     vocab_items = _select_vocabulary(
         point, int(daily.get("vocabulary", 6)), learned_vocabulary
     )
     vocabulary = _vocabulary_rows(vocab_items, point, learned_vocabulary)
     examples = _select_examples(point, vocab_items, int(daily.get("expressions", 3)))
+    reading_overrides = {item.word: item.reading for item in point.vocabulary}
     exercises = _build_exercises(point, vocabulary, examples, int(daily.get("exercises", 4)))
     reviews = _due_reviews(progress, today)
 
@@ -279,7 +430,7 @@ def generate_lesson(
     for index, example in enumerate(examples, 1):
         lines.extend(
             [
-                f"{index}. {example.japanese}",
+                f"{index}. {annotate_kanji_readings(example.japanese, reading_overrides)}",
                 f"   - 中文：{example.chinese}",
             ]
         )
@@ -298,7 +449,7 @@ def generate_lesson(
                 f"{index}. **{item['word']}（{item['reading']}）** · {status}",
                 f"   - 词性：{pos}",
                 f"   - 中文：{item['meaning']}",
-                f"   - 例句：{item['example_japanese'] or '当前本地来源未检索到例句'}",
+                f"   - 例句：{item['example_japanese_annotated'] or MISSING_EXAMPLE}",
             ]
         )
         if item["example_chinese"]:
@@ -312,6 +463,7 @@ def generate_lesson(
             "## Source",
             "",
             f"- Japanese Grammar Notes（CC BY 4.0）：`{point.source_path}`，语法 id `{point.item_id}`",
+            "- UniDic-lite 2.1.2（BSD）：本地分词与汉字读音标注；当天词表读音优先",
         ]
     )
     if any(item["jmdict_ent_seq"] for item in vocabulary):
@@ -341,16 +493,25 @@ def generate_lesson(
     output_dir.mkdir(parents=True, exist_ok=True)
     markdown_path.write_text("\n".join(lines), encoding="utf-8")
     metadata = {
-        "version": 1,
+        "version": LESSON_FORMAT_VERSION,
         "date": today.isoformat(),
         "learner_id": learner_id,
+        "level": level,
         "grammar": {
             "item_id": point.item_id,
             "title": point.title,
             "source_path": point.source_path,
         },
         "vocabulary": vocabulary,
-        "examples": [asdict(example) for example in examples],
+        "examples": [
+            {
+                **asdict(example),
+                "japanese_annotated": annotate_kanji_readings(
+                    example.japanese, reading_overrides
+                ),
+            }
+            for example in examples
+        ],
         "exercises": exercises,
         "review_items": [item["item_id"] for item in reviews[:3]],
     }

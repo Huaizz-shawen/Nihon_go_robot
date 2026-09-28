@@ -34,6 +34,7 @@ not drive the TUI with keystrokes and does not guess the newest rollout file.
 - Python 3.10+
 - An installed and authenticated Codex CLI (`codex`)
 - A QQ Bot AppID and ClientSecret
+- Google Chrome and `xvfb` for the optional X profile monitor
 
 Install from the repository:
 
@@ -68,9 +69,71 @@ is permanently bound as owner until the operator edits `.env` locally.
 | `DAILY_LESSON_ENABLED` | `1` enables group lessons; use `0` to disable |
 | `DAILY_LESSON_TIME` | Local 24-hour publish time, default `09:00` |
 | `DAILY_LESSON_TIMEZONE` | IANA timezone, default `Asia/Shanghai` (UTC+8) |
+| `X_MONITOR_USERNAME` | X profile monitored by `start-x-monitor.sh`; default `AyAsA_violin` |
+| `X_MONITOR_INTERVAL_MINUTES` | Polling interval; default `30`, minimum `5` |
+| `X_MONITOR_CHROME_PATH` | Optional Chrome executable override |
+| `X_MONITOR_DB_FILE` | Optional SQLite history path; defaults to `~/.config/codex-qq-bridge/x-monitor.sqlite3` |
+| `X_MONITOR_GROUP_OPENIDS` | Optional comma-separated group override; by default all active groups in bridge state receive updates |
+| `X_MONITOR_DISPLAY_TIMEZONE` | Timezone shown in group posts; default `Asia/Shanghai` |
+| `X_MONITOR_ANALYSIS_TIMEOUT_SECONDS` | Codex translation/grammar timeout; default `240`, minimum `30` |
+| `X_MEDIA_PROXY` | Optional proxy used only for allowlisted X post images; it does not change the QQ REST/gateway network policy |
+| `X_MEDIA_CACHE_DIR` | Persistent post-image cache; defaults to `~/.config/codex-qq-bridge/x-media-cache` |
 
 The service log rotates at 5 MiB and keeps three backups. `start-codex.sh`
 suppresses duplicate stdout logging while preserving uncaught startup errors.
+
+## X profile monitor
+
+The optional monitor skips pinned content and reads the first non-pinned post from a logged-in X profile
+with an isolated Playwright/Chrome profile. It never stores the X password in
+the bridge `.env`; Chrome owns the login cookies under
+`~/.config/codex-qq-bridge/x-browser-profile` with owner-only permissions.
+The unattended checks run a normal Chrome instance inside Xvfb because X rejects
+this host's browser when Chromium advertises native headless mode.
+`start-x-monitor.sh` accepts either a system `xvfb-run` or the locally extracted
+binary under `.runtime/xvfb/usr/bin`, so system-wide installation is optional.
+
+Log in once in the visible browser, verify a headless read, then start the
+30-minute background loop:
+
+```bash
+./start-x-monitor.sh login
+./start-x-monitor.sh once
+./start-x-monitor.sh start
+./start-x-monitor.sh status
+```
+
+To preview the production group format with the newest post already stored in
+SQLite, run:
+
+```bash
+./start-x-monitor.sh test-send
+```
+
+This command can run while the monitor is active. It sends to every active
+group, includes up to four original post images, caches a missing Codex
+analysis, and deliberately leaves the post's
+baseline/notification state and normal per-group delivery progress unchanged.
+It is therefore explicitly repeatable and does not affect the next automatic
+new-post delivery. Image files are downloaded once into the owner-only
+`X_MEDIA_CACHE_DIR` and reused by later automatic or requested resends.
+
+The first successful read establishes a baseline without sending historical
+content. Every observed post ID, allowlisted `pbs.twimg.com/media` image URL,
+generated analysis, per-group delivery state, sent chunk count, and sent image
+count are retained in the owner-only SQLite database; downloaded image bytes
+live in the separate owner-only media cache. For each
+new first non-pinned `status/<id>`, an ephemeral read-only `codex exec` run
+produces schema-validated Chinese translations and up to four grounded grammar
+notes. The monitor then proactively publishes the exact timestamp, Japanese
+original, Chinese translation, quoted-post context, grammar notes, and source
+link followed by up to four original images to every active group registered by
+the bridge. Text is sent before image retrieval, and an individual image
+download or upload failure is logged without suppressing the learning text.
+Previously seen posts are not sent again if X reorders the timeline; failed
+analysis and unsent message chunks resume on the next check. The X page is third-party content and UI
+automation may stop working after site or login changes; monitor failures are
+isolated from the Codex QQ Bridge.
 
 ## QQ commands
 

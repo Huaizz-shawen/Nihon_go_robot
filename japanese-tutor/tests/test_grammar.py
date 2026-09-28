@@ -88,3 +88,23 @@ def test_parse_lesson_extracts_grounded_content(tmp_path: Path, monkeypatch) -> 
     assert "||" not in points[1].meaning
     assert "Usage Details" not in points[1].meaning
     assert "Usage 1" not in points[1].meaning
+
+
+def test_parse_lesson_accepts_bilingual_vocabulary_heading_without_divider(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "source"
+    path = root / "grammar" / "N3" / "lesson35_test.md"
+    path.parent.mkdir(parents=True)
+    source = LESSON.replace(
+        "## 本课单词表", "## 本课单词表||Vocabulary"
+    ).replace("\n---\n\n## 1.", "\n\n## 1.")
+    path.write_text(source, encoding="utf-8")
+    monkeypatch.setattr(grammar, "GRAMMAR_ROOT", root)
+
+    points = grammar.parse_lesson(path, "N3")
+
+    assert [(item.word, item.reading) for item in points[0].vocabulary] == [
+        ("私", "わたし"),
+        ("学生", "がくせい"),
+    ]
