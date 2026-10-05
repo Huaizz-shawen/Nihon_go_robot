@@ -1,0 +1,552 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "requested_wiki",
+      "url": "https://zh.moegirl.org.cn/zh-hk/%E5%8D%83%E7%9F%B3%E7%94%B1%E4%B9%83",
+      "access_status": "原站未返回正文；通过镜像了解条目范围，不把镜像当官方资料。"
+    },
+    {
+      "id": "wiki_mirror",
+      "url": "https://moegirl.uk/index.php?title=%E5%8D%83%E7%9F%B3%E7%94%B1%E4%B9%83&variant=zh-tw",
+      "scope": "虚拟艺人活动介绍与参考线索，未将直播逸闻混入游戏角色配置。"
+    },
+    {
+      "id": "official_anime_profile",
+      "url": "https://anime.bang-dream.com/yumemita/character/yuno/",
+      "scope": "担当、学校、作曲经历与省电/重情义设定。"
+    },
+    {
+      "id": "official_artist_profile",
+      "url": "https://bang-dream.com/artist/yumemita/sengoku-yuno/",
+      "access_method": "official_page_search_index",
+      "scope": "乐队担当与性格介绍。"
+    },
+    {
+      "id": "official_birthday_post",
+      "url": "https://www.bilibili.com/opus/1131067613701472262",
+      "publisher": "梦限大MewType",
+      "access_method": "search_index",
+      "scope": "11月4日生日。"
+    },
+    {
+      "id": "moenotes_profile",
+      "url": "https://bdon.moe/characters/15",
+      "scope": "第三方展示的游戏角色信息，生日与担当另有官方资料交叉支持；食物与兴趣未独立对照客户端。"
+    },
+    {
+      "id": "moenotes_zh_cn",
+      "url": "https://bdon.moe/story/main",
+      "scope": "主线20话、由乃视角1话、番外3话；逐条比对导出的简体中文字段，保留文本播放顺序与前后上下文。",
+      "official_client_verified": false
+    },
+    {
+      "id": "moenotes_parser",
+      "url": "https://bdon.moe/_astro/parser.WZqLJfrk.js",
+      "scope": "公开阅读器对说话人、字幕、播放顺序与富文本的处理。"
+    },
+    {
+      "id": "moenotes_release",
+      "url": "https://bdon.moe/_astro/release.TXyqRp44.js",
+      "scope": "多语言字段选择及语言回退顺序；采集不允许混入回退文本。"
+    },
+    {
+      "id": "moenotes_server_mapping",
+      "url": "https://bdon.moe/_astro/server.VOtyXe6e.js",
+      "scope": "中文locale选择国际服tw导出，不等同于此前Bestdori的少女乐团派对国服。"
+    }
+  ],
+  "collection": {
+    "collected_at": "2026-10-01T01:30:57+00:00",
+    "site": "https://bdon.moe",
+    "band_id": 3,
+    "character_id": 15,
+    "requested_locale": "zh-CN",
+    "server_selection": "site maps Chinese locale to tw (international export), distinct from Garupa CN",
+    "text_verification": "Every normalized text matches the original exported _simplifiedChinese field; empty/fallback/mismatched text aborts collection.",
+    "ordering": "initialScript.timeline kind=line references into initialScript.lines; video subtitles retained once",
+    "speaker_attribution": "normalized speakerId yuno/adv_yuno cross-checked with speaker name; group lines excluded from solo",
+    "provenance": "Third-party-hosted multilingual game text export; not independently verified against official client/recording.",
+    "snapshots": [
+      {
+        "url": "https://bdon.moe/story/main",
+        "path": "raw/moenotes/main.html",
+        "bytes": 589729,
+        "sha256": "87257e399a75dbeed5764f1ded02739cc550df2f95d9a601ed35936ce318c314"
+      },
+      {
+        "url": "https://bdon.moe/characters/15",
+        "path": "raw/moenotes/character15.html",
+        "bytes": 95492,
+        "sha256": "114ed5a96074f29df8c7c58474f7be2b1a00ef705e8cf402482b566ba0cdc33c"
+      },
+      {
+        "url": "https://bdon.moe/story/10040",
+        "path": "raw/moenotes/story-10040.html",
+        "bytes": 362983,
+        "sha256": "4837c899a319d3ed45413ad1f73ea9aec80f4518a78f9359763c76014265d666",
+        "adv_id": 10040,
+        "episode_kind": "main",
+        "title": "MewType"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_01/adv_script_yumemita_003_1_01-Text/adv_script_yumemita_003_1_01-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_01-Text.json",
+        "bytes": 58077,
+        "sha256": "b4bee9158a85289a1402a9bd83a7fb365a7c03c682078ce33b166b3a9068a96b",
+        "adv_id": 10040,
+        "episode_kind": "main",
+        "title": "MewType"
+      },
+      {
+        "url": "https://bdon.moe/story/10041",
+        "path": "raw/moenotes/story-10041.html",
+        "bytes": 588487,
+        "sha256": "5084dc189bf011d2a4049ed99aacf65be34bd8ac3d2164147b5170963d9e7f13",
+        "adv_id": 10041,
+        "episode_kind": "main",
+        "title": "另有隐情"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_02/adv_script_yumemita_003_1_02-Text/adv_script_yumemita_003_1_02-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_02-Text.json",
+        "bytes": 105258,
+        "sha256": "00a2f874e79fce71b3fae38c384d228eb7b2d1940d5627f9baf8e99893c725da",
+        "adv_id": 10041,
+        "episode_kind": "main",
+        "title": "另有隐情"
+      },
+      {
+        "url": "https://bdon.moe/story/10042",
+        "path": "raw/moenotes/story-10042.html",
+        "bytes": 612047,
+        "sha256": "77f32506a2c28b5f42bed68c45561f14ac81b3f894a8c80c159a612c0ea02563",
+        "adv_id": 10042,
+        "episode_kind": "main",
+        "title": "治疗"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_03/adv_script_yumemita_003_1_03-Text/adv_script_yumemita_003_1_03-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_03-Text.json",
+        "bytes": 98672,
+        "sha256": "1e3edadf992bd92e33151671a9b0bf1d3370ab07a7596e8c977f5ca60fdedf1b",
+        "adv_id": 10042,
+        "episode_kind": "main",
+        "title": "治疗"
+      },
+      {
+        "url": "https://bdon.moe/story/10043",
+        "path": "raw/moenotes/story-10043.html",
+        "bytes": 746364,
+        "sha256": "6b837afb2242fe41d6754c63e20e6a177f95f14ba97141f7082fa5087af6aa49",
+        "adv_id": 10043,
+        "episode_kind": "main",
+        "title": "随你便"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_04/adv_script_yumemita_003_1_04-Text/adv_script_yumemita_003_1_04-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_04-Text.json",
+        "bytes": 124431,
+        "sha256": "e9c46519652b2107d66bd3efc0a164bd4267aab8ee3bda1eab17a5a84a19f665",
+        "adv_id": 10043,
+        "episode_kind": "main",
+        "title": "随你便"
+      },
+      {
+        "url": "https://bdon.moe/story/10044",
+        "path": "raw/moenotes/story-10044.html",
+        "bytes": 651603,
+        "sha256": "19ac1905e13194e3f112b8fb0f5e29bfca89a0e038b87aea2aa258c1c85e998d",
+        "adv_id": 10044,
+        "episode_kind": "main",
+        "title": "还没结束"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_05/adv_script_yumemita_003_1_05-Text/adv_script_yumemita_003_1_05-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_05-Text.json",
+        "bytes": 108768,
+        "sha256": "b1ad0852f74dc7dd2dc085687f29d11eac67fc22f4041ab0c0ee993458ab96d1",
+        "adv_id": 10044,
+        "episode_kind": "main",
+        "title": "还没结束"
+      },
+      {
+        "url": "https://bdon.moe/story/10045",
+        "path": "raw/moenotes/story-10045.html",
+        "bytes": 589711,
+        "sha256": "629c02a3d6381be67a7cfe8c45f5d2ca820ee858cbdf77d5c37832b98cff04d2",
+        "adv_id": 10045,
+        "episode_kind": "main",
+        "title": "好害怕"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_06/adv_script_yumemita_003_1_06-Text/adv_script_yumemita_003_1_06-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_06-Text.json",
+        "bytes": 104614,
+        "sha256": "315e8a3fcb5da1bceb26100dcf113383866568771484c0126d640e8f1e6c78d2",
+        "adv_id": 10045,
+        "episode_kind": "main",
+        "title": "好害怕"
+      },
+      {
+        "url": "https://bdon.moe/story/10046",
+        "path": "raw/moenotes/story-10046.html",
+        "bytes": 620795,
+        "sha256": "4d955568bc39ac3f273827b3153921d556f167288679cbbf636bb8688fee917c",
+        "adv_id": 10046,
+        "episode_kind": "main",
+        "title": "不知道"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_07/adv_script_yumemita_003_1_07-Text/adv_script_yumemita_003_1_07-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_07-Text.json",
+        "bytes": 102101,
+        "sha256": "439099d51499975160fcc63ede3eb4bf74176be11089a55f725c3604b7061094",
+        "adv_id": 10046,
+        "episode_kind": "main",
+        "title": "不知道"
+      },
+      {
+        "url": "https://bdon.moe/story/10047",
+        "path": "raw/moenotes/story-10047.html",
+        "bytes": 460699,
+        "sha256": "81795f2427d0bdb78091f466f604460f826d077338def5b54fd00e008dad5b5d",
+        "adv_id": 10047,
+        "episode_kind": "main",
+        "title": "要抗争"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_08/adv_script_yumemita_003_1_08-Text/adv_script_yumemita_003_1_08-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_08-Text.json",
+        "bytes": 73069,
+        "sha256": "03c9b8134243644ae0abd1661cae831a458ef18fa39152da3b886d073c8cf13c",
+        "adv_id": 10047,
+        "episode_kind": "main",
+        "title": "要抗争"
+      },
+      {
+        "url": "https://bdon.moe/story/10048",
+        "path": "raw/moenotes/story-10048.html",
+        "bytes": 390556,
+        "sha256": "02d421b0be1860c654e3089ca3a5f38c4eaff4eefb9625085099b29ecfb4c35c",
+        "adv_id": 10048,
+        "episode_kind": "main",
+        "title": "闪闪发光"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_09/adv_script_yumemita_003_1_09-Text/adv_script_yumemita_003_1_09-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_09-Text.json",
+        "bytes": 62221,
+        "sha256": "aeb678e355891efc08f815ff32fbcbcf5ca7ba29a647869226c896609dfff823",
+        "adv_id": 10048,
+        "episode_kind": "main",
+        "title": "闪闪发光"
+      },
+      {
+        "url": "https://bdon.moe/story/10049",
+        "path": "raw/moenotes/story-10049.html",
+        "bytes": 455585,
+        "sha256": "a54c8af2eccded0c32548f4c294370c0140e4027c993d2aaaa465d70d4938449",
+        "adv_id": 10049,
+        "episode_kind": "main",
+        "title": "这次一定"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_10/adv_script_yumemita_003_1_10-Text/adv_script_yumemita_003_1_10-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_10-Text.json",
+        "bytes": 82077,
+        "sha256": "8d2ef275244373a0d50a246fabea524edb7aae34d1cc9b0fb282cad3ca4f2392",
+        "adv_id": 10049,
+        "episode_kind": "main",
+        "title": "这次一定"
+      },
+      {
+        "url": "https://bdon.moe/story/10050",
+        "path": "raw/moenotes/story-10050.html",
+        "bytes": 559654,
+        "sha256": "bf1cbfdb2bd9a462febe386174e5d2e5c1a614f314f7eb89690934be70069be0",
+        "adv_id": 10050,
+        "episode_kind": "main",
+        "title": "超级恢复"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_11/adv_script_yumemita_003_1_11-Text/adv_script_yumemita_003_1_11-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_11-Text.json",
+        "bytes": 92972,
+        "sha256": "b806a40a1dc2d6782728857804502ee55a9ec7323751a7bac4fb4df00fd3b213",
+        "adv_id": 10050,
+        "episode_kind": "main",
+        "title": "超级恢复"
+      },
+      {
+        "url": "https://bdon.moe/story/10051",
+        "path": "raw/moenotes/story-10051.html",
+        "bytes": 779213,
+        "sha256": "e1052a50bd0cd7213dc6f357f581d53f39f95f64b9ab8308b804d1706903622e",
+        "adv_id": 10051,
+        "episode_kind": "main",
+        "title": "讨厌"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_12/adv_script_yumemita_003_1_12-Text/adv_script_yumemita_003_1_12-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_12-Text.json",
+        "bytes": 132338,
+        "sha256": "38bef7a033fe8a67f7f072c2b80b0645f01021874e8ff79a1eb91f691d6748e7",
+        "adv_id": 10051,
+        "episode_kind": "main",
+        "title": "讨厌"
+      },
+      {
+        "url": "https://bdon.moe/story/10052",
+        "path": "raw/moenotes/story-10052.html",
+        "bytes": 442287,
+        "sha256": "439f3e5148786dec82bbb2a88105d570fddb6a391441d10ad7d7c37275b5b63e",
+        "adv_id": 10052,
+        "episode_kind": "main",
+        "title": "归宿"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_13/adv_script_yumemita_003_1_13-Text/adv_script_yumemita_003_1_13-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_13-Text.json",
+        "bytes": 63904,
+        "sha256": "914d6053cd01e96fbd22377529a331866246797a9424dc23b40e6a0725124ef9",
+        "adv_id": 10052,
+        "episode_kind": "main",
+        "title": "归宿"
+      },
+      {
+        "url": "https://bdon.moe/story/10053",
+        "path": "raw/moenotes/story-10053.html",
+        "bytes": 522182,
+        "sha256": "d5010e3f2c6fa4c492dd292995573c9e35ac4a93de73588caa222f076d056d57",
+        "adv_id": 10053,
+        "episode_kind": "main",
+        "title": "想要了解"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_14/adv_script_yumemita_003_1_14-Text/adv_script_yumemita_003_1_14-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_14-Text.json",
+        "bytes": 81258,
+        "sha256": "09f020a7c4df17cf2bf2294aca24a184b461a54cf5269e7cf73edb5866add7f7",
+        "adv_id": 10053,
+        "episode_kind": "main",
+        "title": "想要了解"
+      },
+      {
+        "url": "https://bdon.moe/story/10054",
+        "path": "raw/moenotes/story-10054.html",
+        "bytes": 626348,
+        "sha256": "3d88e1f6cfcc0e9c21f69786625c0546d65af729c5ce1d4423fcc2bd8bbde835",
+        "adv_id": 10054,
+        "episode_kind": "main",
+        "title": "和大家一起"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_15/adv_script_yumemita_003_1_15-Text/adv_script_yumemita_003_1_15-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_15-Text.json",
+        "bytes": 109583,
+        "sha256": "bab26ac2f0e0bf3b2ff263968b9415803654a1c2231f1ab925cde092f589c6ad",
+        "adv_id": 10054,
+        "episode_kind": "main",
+        "title": "和大家一起"
+      },
+      {
+        "url": "https://bdon.moe/story/10055",
+        "path": "raw/moenotes/story-10055.html",
+        "bytes": 651789,
+        "sha256": "7a609b34a8e2748699a90d4e287abcf05b9d7d4d98c612a34e4b256c1c4c310c",
+        "adv_id": 10055,
+        "episode_kind": "main",
+        "title": "开始"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_16/adv_script_yumemita_003_1_16-Text/adv_script_yumemita_003_1_16-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_16-Text.json",
+        "bytes": 110258,
+        "sha256": "bc81d7369e2cbd21fb6aa5a4e7315a7bf55c545c261e040e6730a57ac062eb9c",
+        "adv_id": 10055,
+        "episode_kind": "main",
+        "title": "开始"
+      },
+      {
+        "url": "https://bdon.moe/story/10056",
+        "path": "raw/moenotes/story-10056.html",
+        "bytes": 694107,
+        "sha256": "1b5e34984d02c6df4ab57326ba56e20f88f67690469037024b88d2649cbf3e1e",
+        "adv_id": 10056,
+        "episode_kind": "main",
+        "title": "唱歌"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_17/adv_script_yumemita_003_1_17-Text/adv_script_yumemita_003_1_17-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_17-Text.json",
+        "bytes": 113434,
+        "sha256": "03f0a1dd1f774340331714c428e62556c1ea41651f57d90e67e8ae66ca56cfcf",
+        "adv_id": 10056,
+        "episode_kind": "main",
+        "title": "唱歌"
+      },
+      {
+        "url": "https://bdon.moe/story/10057",
+        "path": "raw/moenotes/story-10057.html",
+        "bytes": 682545,
+        "sha256": "e2a22af37280558b46b774f5236e631b680ca8b7937cd40b951b485dc57e6afc",
+        "adv_id": 10057,
+        "episode_kind": "main",
+        "title": "公开"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_18/adv_script_yumemita_003_1_18-Text/adv_script_yumemita_003_1_18-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_18-Text.json",
+        "bytes": 123906,
+        "sha256": "1878603ea7df375ef25e3e90eeceb2b748d62af3c791097976ca3c54e6ddfb39",
+        "adv_id": 10057,
+        "episode_kind": "main",
+        "title": "公开"
+      },
+      {
+        "url": "https://bdon.moe/story/10058",
+        "path": "raw/moenotes/story-10058.html",
+        "bytes": 586431,
+        "sha256": "4af8184238548c268d0aab6c214a7305a99ad8a615af9479a1bf31a205d1dca0",
+        "adv_id": 10058,
+        "episode_kind": "main",
+        "title": "无限的梦"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_19/adv_script_yumemita_003_1_19-Text/adv_script_yumemita_003_1_19-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_19-Text.json",
+        "bytes": 93265,
+        "sha256": "aeff0826903543e0a5c0cb9e3c11dc4aa355d3acdb06308623509911aa39880d",
+        "adv_id": 10058,
+        "episode_kind": "main",
+        "title": "无限的梦"
+      },
+      {
+        "url": "https://bdon.moe/story/10059",
+        "path": "raw/moenotes/story-10059.html",
+        "bytes": 270214,
+        "sha256": "d1512e9bd64ebf77359f29307f6e28735a30209f5600ad4db92892d759f8b149",
+        "adv_id": 10059,
+        "episode_kind": "main",
+        "title": "可能性梦限大"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_1_20/adv_script_yumemita_003_1_20-Text/adv_script_yumemita_003_1_20-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_1_20-Text.json",
+        "bytes": 29920,
+        "sha256": "17d872482c162de00ad0a90c14c0999903cec7110129ba439860ec001f3a0006",
+        "adv_id": 10059,
+        "episode_kind": "main",
+        "title": "可能性梦限大"
+      },
+      {
+        "url": "https://bdon.moe/story/10448",
+        "path": "raw/moenotes/story-10448.html",
+        "bytes": 251332,
+        "sha256": "dec8554eff014ed1c63bd77f939377e842a26293da42c488a0eea008c5687db3",
+        "adv_id": 10448,
+        "episode_kind": "another",
+        "title": "可能性梦限大"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_anotherstory_10448/adv_script_anotherstory_10448-Text/adv_script_anotherstory_10448-Text.json",
+        "path": "raw/moenotes/adv_script_anotherstory_10448-Text.json",
+        "bytes": 30183,
+        "sha256": "2e3b729c15b666d278781d275fa33dbd6d66519b5586b5cd583e25c80aa424a4",
+        "adv_id": 10448,
+        "episode_kind": "another",
+        "title": "可能性梦限大"
+      },
+      {
+        "url": "https://bdon.moe/story/10106",
+        "path": "raw/moenotes/story-10106.html",
+        "bytes": 221963,
+        "sha256": "a3c1d193af9a934a20f00f12559873bee5a82e5af78070b12da2615117d24783",
+        "adv_id": 10106,
+        "episode_kind": "extra",
+        "title": "庆功会"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_exstory_1_01/adv_script_yumemita_003_exstory_1_01-Text/adv_script_yumemita_003_exstory_1_01-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_exstory_1_01-Text.json",
+        "bytes": 32202,
+        "sha256": "dae162d845b90d2ef5e89591666d59717f8082fdc80846d50de33a2ddc7d1116",
+        "adv_id": 10106,
+        "episode_kind": "extra",
+        "title": "庆功会"
+      },
+      {
+        "url": "https://bdon.moe/story/10107",
+        "path": "raw/moenotes/story-10107.html",
+        "bytes": 350672,
+        "sha256": "ce6e8531964514700b869e174f35c639998e6e692635ff638d5c9313f5b71746",
+        "adv_id": 10107,
+        "episode_kind": "extra",
+        "title": "蓝与绿"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_exstory_1_02/adv_script_yumemita_003_exstory_1_02-Text/adv_script_yumemita_003_exstory_1_02-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_exstory_1_02-Text.json",
+        "bytes": 51094,
+        "sha256": "2e40723f1512f85ce2cd95d75c42288867bdbf97c1dfe70799f4f2c78e3685e7",
+        "adv_id": 10107,
+        "episode_kind": "extra",
+        "title": "蓝与绿"
+      },
+      {
+        "url": "https://bdon.moe/story/10108",
+        "path": "raw/moenotes/story-10108.html",
+        "bytes": 318172,
+        "sha256": "393b30fb9a70ee7d9c46bd3c6e0b97bf91dfcf6026e0fffaca47f1f0a900d3d0",
+        "adv_id": 10108,
+        "episode_kind": "extra",
+        "title": "无限延伸的梦限大"
+      },
+      {
+        "url": "https://assets.bdon.moe/zh-Hans/Adv/Episode/adv_script_yumemita_003_exstory_1_03/adv_script_yumemita_003_exstory_1_03-Text/adv_script_yumemita_003_exstory_1_03-Text.json",
+        "path": "raw/moenotes/adv_script_yumemita_003_exstory_1_03-Text.json",
+        "bytes": 48515,
+        "sha256": "85e7d97143fa52e2e1abc85ec1c39b210a3df052c15cde641e706da791166377",
+        "adv_id": 10108,
+        "episode_kind": "extra",
+        "title": "无限延伸的梦限大"
+      }
+    ],
+    "derived_files": [
+      "raw/moenotes/dialogue.jsonl",
+      "raw/moenotes/yuno.jsonl",
+      "raw/moenotes/profile.json",
+      "raw/moenotes/stories.json"
+    ],
+    "raw_git_ignored": true,
+    "manual_annotations": "annotations.json: known readings of another character's posts excluded from personal speech metrics; telephone replies in quotation marks remain spoken_text."
+  },
+  "portrayal_scope": {
+    "default": "fictional_animation_and_game_character",
+    "basis": "延续此前动画角色任务；已询问直播/角色偏好，当前按动画与游戏角色推进。",
+    "live_stream_dialogue_collected": false
+  },
+  "reference_snapshots": [
+    {
+      "path": "raw/reference/official-yuno.html",
+      "bytes": 35201,
+      "sha256": "6dbd69611a8518f3d7cc73c7816734d852a64c3bbb31008a477a323786d85b6e"
+    },
+    {
+      "path": "raw/reference/parser.WZqLJfrk.js",
+      "bytes": 6853,
+      "sha256": "1a3064e58ed79c5ed6e3fe5dcc221bbe26366e7f2c4777dcd8fc074cd221d21c"
+    },
+    {
+      "path": "raw/reference/release.TXyqRp44.js",
+      "bytes": 2562,
+      "sha256": "ec9b5f8572adc5be2f73a3b2faa39833d8d2ef7c260b4c1ff6081b2cdc02e172"
+    },
+    {
+      "path": "raw/reference/server.VOtyXe6e.js",
+      "bytes": 1395,
+      "sha256": "fc81741df3d529ec4b764fb9e1b02f9da187d78ca55bd012748fd949d6a0ce5a"
+    }
+  ]
+}

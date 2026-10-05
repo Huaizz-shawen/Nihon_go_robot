@@ -10,6 +10,7 @@ import json
 import logging
 import re
 import socket
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -259,10 +260,10 @@ class QQApi:
         ):
             raise ValueError("附件地址不能指向本机或私有网络")
 
-    async def fetch_attachment_data_url(self, url: str, declared_type: str) -> str:
-        """Download a QQ media attachment safely and return an inline data URL."""
+    async def _fetch_attachment(self, url: str, declared_type: str) -> tuple[bytes, str]:
+        """Download bounded media while validating each redirect and MIME type."""
         kind = declared_type.lower().split(";", 1)[0].strip()
-        if kind.startswith("image/"):
+        if kind == "image" or kind.startswith("image/"):
             limit, expected = _ATTACHMENT_IMAGE_MAX, "image/"
         elif kind.startswith("audio/") or "voice" in kind:
             limit, expected = _ATTACHMENT_AUDIO_MAX, "audio/"
@@ -310,9 +311,46 @@ class QQApi:
                         raise ValueError("附件超过允许大小")
                 if not payload:
                     raise ValueError("附件内容为空")
-                encoded = base64.b64encode(payload).decode("ascii")
-                return f"data:{mime};base64,{encoded}"
+                return bytes(payload), mime
         raise RuntimeError("附件重定向次数过多")
+
+    async def fetch_attachment_data_url(self, url: str, declared_type: str) -> str:
+        """Keep audio/inline callers on the existing bounded download path."""
+        payload, mime = await self._fetch_attachment(url, declared_type)
+        encoded = base64.b64encode(payload).decode("ascii")
+        return f"data:{mime};base64,{encoded}"
+
+    async def fetch_attachment_image(
+        self, url: str, declared_type: str, *, cache_dir: Path | None = None
+    ) -> Path:
+        """Store received image bytes under an opaque, private filename."""
+        if declared_type != "image" and not declared_type.startswith("image/"):
+            raise ValueError("附件不是图片")
+        payload, _mime = await self._fetch_attachment(url, declared_type)
+        # Detect actual bytes, including QQ's generic application/octet-stream
+        # responses. Never use the supplied filename as a local path.
+        if payload.startswith(b"\x89PNG\r\n\x1a\n"):
+            suffix = ".png"
+        elif payload.startswith(b"\xff\xd8\xff"):
+            suffix = ".jpg"
+        elif payload.startswith((b"GIF87a", b"GIF89a")):
+            suffix = ".gif"
+        elif payload.startswith(b"RIFF") and payload[8:12] == b"WEBP":
+            suffix = ".webp"
+        else:
+            raise ValueError("附件内容不是支持的 PNG、JPEG、GIF 或 WebP 图片")
+        directory = cache_dir or self.temp_dir / "incoming-images"
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with tempfile.NamedTemporaryFile(dir=directory, suffix=suffix, delete=False) as file:
+            path = Path(file.name).resolve()
+            try:
+                file.write(payload)
+                file.flush()
+            except BaseException:
+                path.unlink(missing_ok=True)
+                raise
+        path.chmod(0o600)
+        return path
 
     async def send_typing(self, openid: str, msg_id: str) -> bool:
         token = await self.token()

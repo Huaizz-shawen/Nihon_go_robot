@@ -24,6 +24,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 
+from .persona import group_role, narrate_blocks
+from .codex_runtime import codex_subprocess_env
 from .qq_api import QQ_TEXT_SAFE_LIMIT, QQApi
 
 
@@ -35,7 +37,7 @@ DEFAULT_DATABASE = DEFAULT_CONFIG_DIR / "x-monitor.sqlite3"
 DEFAULT_BRIDGE_STATE_FILE = DEFAULT_CONFIG_DIR / "state.json"
 DEFAULT_MEDIA_CACHE_DIR = DEFAULT_CONFIG_DIR / "x-media-cache"
 DEFAULT_USERNAME = "AyAsA_violin"
-DEFAULT_INTERVAL_MINUTES = 30
+DEFAULT_INTERVAL_MINUTES = 10
 DEFAULT_ANALYSIS_TIMEOUT_SECONDS = 240
 MAX_POST_IMAGES = 4
 MAX_POST_IMAGE_BYTES = 10 * 1024 * 1024
@@ -213,6 +215,8 @@ class MonitorStore:
                     "ALTER TABLE group_deliveries "
                     "ADD COLUMN sent_images INTEGER NOT NULL DEFAULT 0"
                 )
+            if "text_chunks_json" not in group_columns:
+                connection.execute("ALTER TABLE group_deliveries ADD COLUMN text_chunks_json TEXT NOT NULL DEFAULT ''")
         self.path.chmod(0o600)
 
     def _connect(self) -> sqlite3.Connection:
@@ -412,6 +416,29 @@ class MonitorStore:
                 (post.username, post.post_id, group_openid),
             ).fetchone()
         return (int(row[0]), int(row[1])) if row else (0, 0)
+
+    def load_group_chunks(self, post: XPost, group_openid: str) -> list[str] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT text_chunks_json FROM group_deliveries WHERE username = ? AND post_id = ? AND group_openid = ?",
+                (post.username, post.post_id, group_openid),
+            ).fetchone()
+        return json.loads(row[0]) if row and row[0] else None
+
+    def pin_group_chunks(self, post: XPost, group_openid: str, chunks: list[str]) -> list[str]:
+        """Keep the first layout across role changes and partial-delivery retries."""
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE group_deliveries SET text_chunks_json = ? WHERE username = ? AND post_id = ? AND group_openid = ? AND text_chunks_json = ''",
+                (json.dumps(chunks, ensure_ascii=False), post.username, post.post_id, group_openid),
+            )
+            row = connection.execute(
+                "SELECT text_chunks_json FROM group_deliveries WHERE username = ? AND post_id = ? AND group_openid = ?",
+                (post.username, post.post_id, group_openid),
+            ).fetchone()
+        if row is None:
+            raise RuntimeError("X group delivery must be registered before pinning chunks")
+        return json.loads(row[0])
 
     def record_group_progress(
         self,
@@ -1097,6 +1124,7 @@ async def analyze_post_with_codex(post: XPost, *, timeout_seconds: int) -> PostA
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=codex_subprocess_env(codex_bin),
             )
         except FileNotFoundError as exc:
             raise RuntimeError(f"找不到 Codex CLI: {codex_bin}") from exc
@@ -1110,7 +1138,13 @@ async def analyze_post_with_codex(post: XPost, *, timeout_seconds: int) -> PostA
             await process.wait()
             raise RuntimeError("Codex 日语分析超时") from exc
         if process.returncode != 0:
-            raise RuntimeError(f"Codex 日语分析失败（退出码 {process.returncode}）")
+            # Do not log raw stderr: Codex also echoes the post/prompt there.
+            detail = ""
+            if b"SyntaxError: Unexpected reserved word" in _stderr:
+                detail = "；Node.js 解释器版本不兼容，请检查 CODEX_BIN 与 PATH"
+            raise RuntimeError(
+                f"Codex 日语分析失败（退出码 {process.returncode}{detail}）"
+            )
         try:
             raw = result_path.read_text(encoding="utf-8")
         except OSError:
@@ -1346,6 +1380,8 @@ async def send_learning_post_to_group(
     group_openid: str,
     *,
     reply_msg_id: str = "",
+    role: str = "default",
+    state_file: Path | None = None,
 ) -> tuple[int, int]:
     """Send one stored post in the production learning format to one group."""
     message = format_learning_message(
@@ -1353,6 +1389,8 @@ async def send_learning_post_to_group(
         analysis,
         timezone_name=os.environ.get("X_MONITOR_DISPLAY_TIMEZONE", "Asia/Shanghai"),
     )
+    if role != "default" and state_file is not None:
+        message = (await narrate_blocks(role, "x", [message], state_file=state_file))[0]
     chunks = split_group_message(message)
     for index, chunk in enumerate(chunks):
         if not await qq.send_group_text(
@@ -1427,7 +1465,7 @@ async def publish_learning_post(
         analysis,
         timezone_name=os.environ.get("X_MONITOR_DISPLAY_TIMEZONE", "Asia/Shanghai"),
     )
-    chunks = split_group_message(message)
+    default_chunks = split_group_message(message)
     qq = build_qq_client()
     image_paths: list[Path] | None = None
     delivered_groups = 0
@@ -1440,6 +1478,14 @@ async def publish_learning_post(
                 sent_chunks, sent_images = store.ensure_group_delivery(
                     post, group_openid
                 )
+                chunks = store.load_group_chunks(post, group_openid)
+                if chunks is None:
+                    # Old partially/completely sent records used the neutral format.
+                    chunks = default_chunks
+                    if not sent_chunks and not sent_images:
+                        rendered = await narrate_blocks(group_role(state_file, group_openid), "x", [message], state_file=state_file)
+                        chunks = split_group_message(rendered[0])
+                    chunks = store.pin_group_chunks(post, group_openid, chunks)
                 sent_chunks = min(sent_chunks, len(chunks))
                 for index in range(sent_chunks, len(chunks)):
                     if not await qq.send_group_text(group_openid, chunks[index]):
@@ -1553,7 +1599,7 @@ async def test_send_latest_post(
     qq = build_qq_client()
     try:
         for group_openid in group_openids:
-            await send_learning_post_to_group(post, analysis, qq, group_openid)
+            await send_learning_post_to_group(post, analysis, qq, group_openid, role=group_role(state_file, group_openid), state_file=state_file)
     finally:
         await qq.close()
     logger.info(

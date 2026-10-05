@@ -9,7 +9,7 @@ LOG_DIR="${BRIDGE_LOG_DIR:-${SCRIPT_DIR}/logs}"
 OUT_LOG="${LOG_DIR}/x-monitor.out.log"
 PID_FILE="${LOG_DIR}/x-monitor.pid"
 USERNAME="${X_MONITOR_USERNAME:-AyAsA_violin}"
-INTERVAL="${X_MONITOR_INTERVAL_MINUTES:-30}"
+INTERVAL="${X_MONITOR_INTERVAL_MINUTES:-10}"
 XVFB_RUN="$(command -v xvfb-run 2>/dev/null || true)"
 if [ -z "${XVFB_RUN}" ] && [ -x "${SCRIPT_DIR}/.runtime/xvfb/usr/bin/xvfb-run" ]; then
     export PATH="${SCRIPT_DIR}/.runtime/xvfb/usr/bin:${PATH}"

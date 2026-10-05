@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "annotations": [
+    {
+      "adv_id": 10057,
+      "text_id": "adv_script_yumemita_003_1_18_254",
+      "utterance_kind": "quoted_material",
+      "reason": "主线第18话中朗读阿拉蕾此前的社交动态；归属为由乃朗读，但措辞不用于由乃个人对白风格统计。",
+      "source_url": "https://bdon.moe/story/10057"
+    },
+    {
+      "adv_id": 10057,
+      "text_id": "adv_script_yumemita_003_1_18_263",
+      "utterance_kind": "quoted_material",
+      "reason": "主线第18话中朗读阿拉蕾此前的社交动态；归属为由乃朗读，但措辞不用于由乃个人对白风格统计。",
+      "source_url": "https://bdon.moe/story/10057"
+    }
+  ]
+}

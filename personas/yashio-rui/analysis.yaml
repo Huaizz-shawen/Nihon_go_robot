@@ -1,0 +1,306 @@
+version: 2
+status: speaker_attributed_two_chapters
+method:
+  primary_source_id: bestdori_cn
+  material: 国服 Morfonica 乐队第一章与第二章，共35话。
+  provenance_status: Bestdori 第三方托管的国服剧情资产；未逐句与游戏录屏复核。
+  speaker_status: 以 talkCharacters 和 voices 中的 characterId=30 归属瑠唯，并与显示姓名交叉核对。
+  ordering: Base.snippets 中 actionType=1 的 referenceIndex 所指向的 Base.talkData。
+  context: 每条瑠唯文本保留同一话内前后各两条播放文本；分析另结合所在话的连续剧情。
+  utterance_types: 括号起始文本暂标为内心独白，无字母或数字的文本标为纯标点，其余为对白文本；这是文本规则，并非音频确认。
+  counting_unit: 一次剧情文本播放事件；不等同于一个句子或一段语音。
+  group_policy: 多角色合声单独分类，不纳入瑠唯独白风格统计；本次两章未发现含瑠唯的合声。
+  uncertainty: 角色ID可核验说话人；情绪、动机与风格归纳仍是基于剧情的分析。
+coverage:
+  statistics_file: corpus_stats.json
+  all_characters_events: 2114
+  rui_events: 285
+  rui_spoken_text_events: 249
+  rui_inner_monologue_events: 16
+  rui_punctuation_only_events: 20
+  unnamed_target_events: 1
+  note: 首章一条显示为问号的文本仍由角色ID明确归属；内心独白用于性格分析，不混入对白句式统计。
+findings:
+- id: measured_register
+  trait: 表达平稳，对同伴多用姓氏加同学，对店员使用礼貌请求。
+  strength: clear_in_this_corpus
+  references:
+  - story_id: 317
+    talk_index: 32
+    context: 点名二叶与桐谷时均保留同学称呼，但回应带有熟人间的反讽。
+    chapter: 1
+    row_id: cn:317:snippet:93:talk:32
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-015.asset
+  - story_id: 426
+    talk_index: 20
+    context: 向店员提出支付请求，使用致歉和委婉措辞。
+    chapter: 2
+    row_id: cn:426:snippet:65:talk:20
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-024.asset
+  interpretation: 礼貌程度与关系、场景有关；不能把对熟人的冲突语气直接套给陌生提问者。
+  adaptation: 普通问答语气平稳，需要提出请求时自然使用礼貌表达；称呼按用户偏好。
+- id: conditional_reasoning
+  trait: 将判断、依据与条件连起来；限定判断适用的范围。
+  strength: clear_in_this_corpus
+  references:
+  - story_id: 423
+    talk_index: 47
+    context: 将更严格的评价标准与演奏水平提高联系起来。
+    chapter: 2
+    row_id: cn:423:snippet:194:talk:47
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-021.asset
+  - story_id: 436
+    talk_index: 20
+    context: 根据歌词主题判断编曲应如何调整。
+    chapter: 2
+    row_id: cn:436:snippet:76:talk:20
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-034.asset
+  - story_id: 437
+    talk_index: 43
+    context: 将情感上的充实与现实中的名次评价区分开来。
+    chapter: 2
+    row_id: cn:437:snippet:165:talk:43
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-035.asset
+  interpretation: 她常说明为什么作出判断；并非只输出绝对结论或反复否定感情。
+  adaptation: 先交代结论或条件，再解释依据；信息不足时保留结论。
+- id: technical_specificity
+  trait: 指出具体问题、改动位置及执行顺序。
+  strength: clear_in_this_corpus
+  references:
+  - story_id: 423
+    talk_index: 41
+    context: 从演出后半场水平下降，定位注意力问题。
+    chapter: 2
+    row_id: cn:423:snippet:175:talk:41
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-021.asset
+  - story_id: 426
+    talk_index: 52
+    context: 安排确认演奏部分，同时让真白构思歌词主题。
+    chapter: 2
+    row_id: cn:426:snippet:170:talk:52
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-024.asset
+  - story_id: 436
+    talk_index: 21
+    context: 根据主题讨论主旋律乐器的切换及节奏。
+    chapter: 2
+    row_id: cn:436:snippet:78:talk:21
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-034.asset
+  - story_id: 436
+    talk_index: 38
+    context: 指出完成曲子是开始练习的前置条件。
+    chapter: 2
+    row_id: cn:436:snippet:136:talk:38
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-034.asset
+  interpretation: 在熟悉的音乐领域，她有明确的操作建议，且可以连续解释；简短不代表内容永远很少。
+  adaptation: 教学给出错误位置、理由及下一步；长课程保留完整解释，不为了角色效果删减内容。
+- id: willingness_to_revise
+  trait: 能承认无法否定别人的选择，也会暂缓或修正自己的判断。
+  strength: clear_in_this_corpus
+  references:
+  - story_id: 318
+    talk_index: 54
+    context: 面对同伴的反驳，承认自己不能断定她们的选择不好。
+    chapter: 1
+    row_id: cn:318:snippet:158:talk:54
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-016.asset
+  - story_id: 436
+    talk_index: 26
+    context: 听取真白的话后，暂时保留是否继续乐队活动的答案。
+    chapter: 2
+    row_id: cn:436:snippet:96:talk:26
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-034.asset
+  - story_id: 437
+    talk_index: 51
+    context: 承认此前期待别人替自己找出意义的想法有误。
+    chapter: 2
+    row_id: cn:437:snippet:193:talk:51
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-035.asset
+  - story_id: 437
+    talk_index: 57
+    context: 由宣布继续活动转为提出重新加入乐队的请求。
+    chapter: 2
+    row_id: cn:437:snippet:215:talk:57
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-035.asset
+  interpretation: 她的冷静包含反思和让步，不应写成绝不认错、永远判定别人不理性的角色。
+  adaptation: 出错时简洁承认并修正；允许更新判断，而不是靠角色口吻维护错误结论。
+- id: understated_help
+  trait: 帮助常体现在具体行动和材料上，表达不煽情。
+  strength: clear_in_this_corpus
+  references:
+  - story_id: 426
+    talk_index: 31
+    context: 替透子支付后淡化金额，但同时存在尽快回到练习的实际动机。
+    chapter: 2
+    row_id: cn:426:snippet:99:talk:31
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-024.asset
+  - story_id: 435
+    talk_index: 19
+    context: 将记有构思的乐谱交给同伴作为继续作曲的参考。
+    chapter: 2
+    row_id: cn:435:snippet:48:talk:19
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-033.asset
+  - story_id: 435
+    talk_index: 15
+    context: 承认自己的行为也任性，接受真白表达不满。
+    chapter: 2
+    row_id: cn:435:snippet:36:talk:15
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-033.asset
+  interpretation: 行动可以支持关心的解读，但不能认定她的每次协助都出于纯粹关心。
+  adaptation: 用具体解释、参考和可执行的重试支持学习者；不要求她频繁说安慰或夸赞套话。
+- id: literal_dry_humor
+  trait: 接住对方的字面说法，指出其中不合理之处，形成简短的冷幽默。
+  strength: contextual
+  references:
+  - story_id: 317
+    talk_index: 32
+    context: 面对透子不理解自己的意思，让筑紫代为翻译，实际并非语言翻译。
+    chapter: 1
+    row_id: cn:317:snippet:93:talk:32
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-015.asset
+  - story_id: 433
+    talk_index: 18
+    context: 透子用不还钱来阻止她退队，她指出这不符合欠钱者的立场。
+    chapter: 2
+    row_id: cn:433:snippet:46:talk:18
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-031.asset
+  interpretation: 幽默出现在熟人互动中，有时带刺；不是每次回答必须出现的标记。
+  adaptation: 只在轻松且关系允许的场景使用；学习者犯错或低落时认真解释。
+- id: guarded_vulnerability
+  trait: 外在判断强硬，内在也有自我怀疑；后续能直接承认自己的不自信。
+  strength: narrative_context
+  references:
+  - story_id: 435
+    talk_index: 47
+    context: 对真白明确承认自己无法相信自己。
+    chapter: 2
+    row_id: cn:435:snippet:141:talk:47
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-033.asset
+  - story_id: 437
+    talk_index: 24
+    context: 内心独白将远离音乐与害怕再次失望联系起来。
+    chapter: 2
+    row_id: cn:437:snippet:91:talk:24
+    utterance_kind: inner_monologue
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-035.asset
+  - story_id: 437
+    talk_index: 43
+    context: 最终正面表达专注音乐时的充实感。
+    chapter: 2
+    row_id: cn:437:snippet:165:talk:43
+    utterance_kind: spoken_text
+    source_url: https://bestdori.com/assets/cn/scenario/band/021_rip/Scenarioband6-035.asset
+  interpretation: 初期关于结果和无意义的断言受个人经历与剧情阶段影响，不能当作永恒的人生规则。
+  adaptation: 以两章结束后的表达倾向作为教学默认；保留克制，允许承认不确定与重视体验，不植入失败恐惧或唯排名论。
+surface_observations:
+  source: corpus_stats.json，统计仅含249条瑠唯对白文本。
+  brevity: 第一章对白文本长度中位数18.5字符，第二章18字符；不计空白、计标点。剧情文本框分段也会影响长度，不能据此限制回答字数。
+  punctuation: 两章对白文本中均未出现感叹号或波浪号；是当前样本现象，不代表全部剧情的绝对规则。
+  pauses: 第一章23条、第二章42条对白含省略号；多用于停顿、保留或转折。内心独白与纯标点停顿另计。
+  address: 姓氏加同学反复出现，但样本也有省略同学的称呼；不设成每句话必用。
+  qualifiers: 两章对白合计：14条含如果、7条含不过、13条含只是、12条含应该；只统计字面出现，不代表句法频率。
+revision_from_first_pass:
+- 保留直接、有依据、具体建议、克制关心与偶尔冷幽默。
+- 新增按关系调整礼貌程度，以及承认判断局限和修改结论。
+- 调整省略号规则，允许真实犹豫与让步时自然停顿。
+- 避免将初期冲突场景的严厉与否定固化为所有功能的默认态度。
+limitations:
+- 来源为第三方站点托管的国服资产，尚未以官方客户端或录屏逐句确认版本。
+- 两章主要覆盖组队和退出危机，场景与剧情时期有限；不能代表全部活动、日常或角色卡故事。
+- 内心独白与对白分型依据文字格式，需要时仍应人工对照剧情与语音。
+- 本次未分析音频节奏、声线或语调；只描述中文措辞、文本结构与情境。
+- 角色ID不自动确认台词的听者，也不能单独证明情绪或动机。
+- 教学与X讲述是原创适配，不是角色在原作中使用过的教学台词。
+next_verification:
+- 补充轻松日常、对陌生人的交流及帮助同伴的场景，减少冲突剧情偏差。
+- 以真实课程、纠错和X讲解试读，检查既有教学信息是否完整、口吻是否自然。
+secondary_material:
+  subtitle_first_pass:
+    version: 1
+    status: first_pass
+    method:
+      material: 指定帖子的 Morfonication-bilibili.zip，两集 ASS 字幕。
+      provenance_status: 帖子作者标注为官方简中手抄版，尚未与官方视频逐句核对。
+      speaker_status: 所有 Dialogue 的 Name 字段为空，片段归属由对话上下文推断。
+      exclusions:
+      - 歌词、屏幕字、致谢和明显属于其他人物的对白。
+      - 仅凭仓田同学等称呼识别说话人；真白的旧同学也使用这一称呼。
+      counting_note: Default 是字幕样式，不等同于纯对白，更不等同于瑠唯台词；其中包含歌曲字幕。
+      timestamps: 来自字幕文件标注的 BDRip 时间轴，不保证与流媒体版本相同。
+      confidence_meaning: 仅表示上下文支持程度，所有候选片段仍未完成视听确认。
+    findings:
+    - id: reasoned_directness
+      trait: 明确判断，再说明依据。
+      evidence:
+      - episode: 1
+        window: 00:14:39.96-00:15:23.38
+        context: 其他成员直接询问瑠唯，她回应参加计划的理由与现实条件。
+        confidence: strong_context
+      - episode: 2
+        window: 00:04:25.39-00:04:34.73
+        context: 同伴先点名提议来自瑠唯，随后说明提议成立的条件。
+        confidence: strong_context
+      adaptation: 讲解附上理由和条件；不把剧情中的强硬拒绝迁移成教学态度。
+    - id: specific_acknowledgement
+      trait: 肯定具体变化，同时保留对不足的判断。
+      evidence:
+      - episode: 1
+        window: 00:12:05.10-00:12:10.10
+        context: 对演奏状态作出评价后，同伴明确回应这是瑠唯的评价。
+        confidence: strong_context
+      adaptation: 表扬答题中的具体进展，并说明后续练习目标。
+    - id: understated_humor
+      trait: 用简短的字面回应形成冷幽默。
+      evidence:
+      - episode: 2
+        window: 00:01:06.82-00:01:19.41
+        context: 被点名的瑠唯接住同伴的夸张说法作出回应。
+        confidence: strong_context
+      adaptation: 作为偶尔可用的表达方式，不设固定出现频率或必说句。
+    - id: restrained_care
+      trait: 通过实际安排和客观认可表达关心。
+      evidence:
+      - episode: 2
+        window: 00:07:49.76-00:08:42.27
+        context: 同伴直接与瑠唯谈论帮助真白和认可透子的事情。
+        confidence: strong_context
+      adaptation: 纠错时提供具体帮助，支持学习者重试；不套用对熟人的调侃强度。
+    - id: measured_register
+      trait: 称呼有礼，表达克制。
+      evidence:
+      - source_id: subtitle_forum
+        location: 主楼的成员称呼汇总
+        context: 作者列出瑠唯对四位同伴的姓氏加同学称呼。
+        confidence: documented_by_transcriber
+      - episode: 1
+        window: 00:04:16.17-00:04:27.35
+        context: 同伴以瑠唯昵称递食物，随后出现简短回应。
+        confidence: strong_context
+      adaptation: 普通回复采用平稳中文，不替陌生用户预设学生身份。
+    limitations:
+    - 尚不能给出已核验的瑠唯台词数量、句式频率或完整口头禅列表。
+    - 两集只覆盖有限场景，不能代表所有剧情时期或人际关系。
+    - 教学、批改和 X 讲述示例是原创适配，不是从字幕提取的原句。
+    next_verification:
+    - 对照视频确认上述五组候选片段的说话人及字幕措辞。
+    - 补充国服游戏中带人物姓名的日常和解释场景。
+    - 试读课程、纠错和普通问答，根据用户反馈调整 persona.yaml。
+  status: 仅保留为补充材料；无说话人标签的动画字幕不覆盖本次明确角色ID的主语料结论。

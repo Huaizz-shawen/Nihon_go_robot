@@ -6,7 +6,7 @@ not drive the TUI with keystrokes and does not guess the newest rollout file.
 
 ## Features
 
-- Persistent private Codex thread plus one isolated thread per QQ group, with
+- Persistent Codex threads per role in private chat and each QQ group, with
   automatic process recovery
 - Explicit thread start, list, resume, interrupt, steer, and compaction
 - Completed-item reply buffering so responses below QQ's safe text limit stay in
@@ -16,12 +16,19 @@ not drive the TUI with keystrokes and does not guess the newest rollout file.
 - Safe default: `workspace-write` plus `on-request` approvals
 - One-time `MASTER_OPENID` binding; another sender cannot replace the owner
 - `/cd`, `/pwd`, and `/ls` workspace management
-- Safely downloaded inline image/audio inputs and file-link fallback
+- Safely downloaded native `localImage` inputs, inline audio, and file-link fallback
+- Direct and quoted QQ image attachments (`msg_elements[].attachments`), with
+  filename/type detection for generic image metadata
+- Quoted message text (`msg_elements[].content`) supplied alongside the current
+  user's task, with a missing-source notice when QQ supplies only a reference
 - Local image/file upload to QQ and long-reply TXT fallback
 - Independent ephemeral `/btw` side threads
 - QQ WebSocket heartbeat, reconnect backoff, proxy detection, and deduplication
 - Group `@` messages from any member, with replies quoted back to the same group
   and prefixed with the triggering member's display name
+- Requests in the same group wait in arrival order until the preceding Codex
+  turn finishes; a new member's request does not steer that turn or replace its
+  reply recipient. Different groups continue independently
 - Stable pseudonymous `learner_id` metadata for per-member learning state without
   exposing raw QQ OpenIDs to Codex
 - Source-grounded Japanese lessons proactively published to every known group at
@@ -59,18 +66,22 @@ is permanently bound as owner until the operator edits `.env` locally.
 | `CLIENT_SECRET` | QQ Bot client secret |
 | `MASTER_OPENID` | Allowed QQ user; empty enables first-user binding |
 | `CODEX_CWD` | Initial absolute Codex workspace path |
-| `CODEX_BIN` | Codex executable, default `codex` from `PATH` |
+| `CODEX_BIN` | Codex executable, default `codex` from `PATH`; subprocesses prepend its launcher directory to `PATH` so an npm installation uses its accompanying Node.js |
 | `CODEX_SANDBOX` | `read-only`, `workspace-write`, or `danger-full-access` |
 | `CODEX_APPROVAL_POLICY` | `untrusted`, `on-request`, or `never` |
 | `BRIDGE_LOG_DIR` | Optional log directory |
 | `CODEX_QQ_STATE_FILE` | Optional persistent bridge-state file |
+| `CODEX_PERSONA_ROOT` | Profile directory containing `yashio-rui/persona.yaml` and `sengoku-yuno/persona.yaml`; defaults to the repository's `personas/` sibling of the bridge project |
+| `CODEX_PERSONA_CACHE_DIR` | Narration cache; defaults to `persona-cache/` beside bridge state. Use the same directory in bridge and X monitor |
+| `CODEX_PERSONA_TIMEOUT_SECONDS` | Narration generation timeout; default `45`. On failure, use cached authored role transitions |
+| `QQ_ATTACHMENT_CACHE_DIR` | Downloaded incoming images; defaults to `incoming-images/` beside bridge state. Opaque filenames and owner-only permissions; files remain available for subsequent inspection |
 | `QQ_TRUST_ENV_PROXY` | `0`（默认）使 QQ REST、附件和 gateway 强制直连；`1` 才继承环境代理。Codex 仍继承代理环境 |
 | `JAPANESE_TUTOR_ROOT` | Japanese Tutor directory; defaults to the sibling `japanese-tutor` |
 | `DAILY_LESSON_ENABLED` | `1` enables group lessons; use `0` to disable |
 | `DAILY_LESSON_TIME` | Local 24-hour publish time, default `09:00` |
 | `DAILY_LESSON_TIMEZONE` | IANA timezone, default `Asia/Shanghai` (UTC+8) |
 | `X_MONITOR_USERNAME` | X profile monitored by `start-x-monitor.sh`; default `AyAsA_violin` |
-| `X_MONITOR_INTERVAL_MINUTES` | Polling interval; default `30`, minimum `5` |
+| `X_MONITOR_INTERVAL_MINUTES` | Polling interval; default `10`, minimum `5` |
 | `X_MONITOR_CHROME_PATH` | Optional Chrome executable override |
 | `X_MONITOR_DB_FILE` | Optional SQLite history path; defaults to `~/.config/codex-qq-bridge/x-monitor.sqlite3` |
 | `X_MONITOR_GROUP_OPENIDS` | Optional comma-separated group override; by default all active groups in bridge state receive updates |
@@ -81,6 +92,20 @@ is permanently bound as owner until the operator edits `.env` locally.
 
 The service log rotates at 5 MiB and keeps three backups. `start-codex.sh`
 suppresses duplicate stdout logging while preserving uncaught startup errors.
+
+## Incoming quoted messages
+
+In private chat or a group `@` message, the bridge supplies the quote's original
+text and attachments as context and labels the current message body as the task.
+Quoted commands are not executed as bridge commands. An original author's display
+name is included only when supplied by QQ; the author is not assumed to be the
+member currently asking the question.
+
+If QQ supplies only a reference marker without the original text or attachments,
+the model is told the source is unavailable and to request a copy when needed.
+The bridge does not retrieve chat history from an opaque reference index. Metadata
+logs record quote presence and character count without recording the original
+text, reference indexes, or authentication tokens.
 
 ## X profile monitor
 
@@ -94,7 +119,7 @@ this host's browser when Chromium advertises native headless mode.
 binary under `.runtime/xvfb/usr/bin`, so system-wide installation is optional.
 
 Log in once in the visible browser, verify a headless read, then start the
-30-minute background loop:
+10-minute background loop:
 
 ```bash
 ./start-x-monitor.sh login
@@ -135,11 +160,49 @@ analysis and unsent message chunks resume on the next check. The X page is third
 automation may stop working after site or login changes; monitor failures are
 isolated from the Codex QQ Bridge.
 
+## Role sessions and shared progress
+
+Private chat and every group select their own role. Any group member can use a
+role command after mentioning the bot; it changes the role for the **whole group**.
+Other groups and the owner's private chat are unaffected. Switching while a reply
+is running asks the user to wait for that reply to finish.
+
+Each role keeps its own persistent Codex thread. Switching back resumes that
+role's conversation; `/new` clears only the current private role's conversation.
+Private `/resume` lists only compatible histories and cannot import another
+role's or group's conversation. Existing state migrates to `default` without
+resetting learning or delivery records.
+
+The learner IDs remain `owner`, `qq_...` and `group_...`: no role suffix is added.
+Daily lesson dates, immutable lesson files, and X post/group delivery records are
+shared across roles. **Switching does not generate or send a lesson or X post.**
+Explicitly requesting a resend continues to work, using the current role.
+
+Profiles supply the voice and facts such as birthday and favorite foods; normal
+answers do not need a self-introduction. The `/btw` fork inherits the active role.
+For scheduled lessons and X posts, cached short role transitions are added around
+the complete canonical content. Japanese originals, translations, grammar,
+vocabulary, exercises, sources and pictures are preserved. The cache key includes
+profile revision/content, purpose and source content. If generation fails, an
+authored transition is cached; delivery continues. Once a delivery starts, its
+rendered sections/chunks are pinned so changing roles during a retry cannot
+change offsets or resend completed content. Legacy partial deliveries keep their
+original neutral layout.
+
+Run `./setup-codex.sh` to install the added PyYAML dependency, then restart the
+bridge and X monitor. When installing outside this repository, set
+`CODEX_PERSONA_ROOT` to a copy of the supplied `personas/` directory. Both processes
+must read the same `CODEX_QQ_STATE_FILE` to share the group role selection.
+
 ## QQ commands
 
 | Command | Effect |
 |---|---|
 | text | Start a turn; while Codex is working, steer the active turn |
+| `/role` | Show the selected role |
+| `/role_switch_rui` | Select 八潮瑠唯 for this private chat or entire group |
+| `/role_switch_yuno` | Select 千石由乃 for this private chat or entire group |
+| `/role_switch_default` | Return to the default assistant |
 | `/new` | Start a new thread in the current directory |
 | `/resume` | List recent threads for the current directory |
 | `/resume N` | Resume a listed thread |
@@ -172,14 +235,19 @@ isolated from the Codex QQ Bridge.
 - Model-generated file markers are restricted to the active workspace. Sending
   a file outside it requires the owner's explicit `/sendfile` command.
 - Remote media attachments are restricted to public HTTPS targets, bounded by
-  size and MIME type, and converted to App Server-compatible inline data URLs.
+  size and MIME type. Images are stored locally and passed as native
+  `{ "type": "localImage", "path": "/absolute/path.png" }` App Server inputs;
+  audio retains the inline data URL path. Top-level attachments and quoted
+  `msg_elements[].attachments` are collected and deduplicated. Download failures
+  are reported as unread attachments. Logs record metadata counts and input types
+  without image contents, signed URLs or raw OpenIDs.
   Known QQ CDN hosts may use the proxy-only `198.18.0.0/15` and
   `fdfe:dcba:9876::/48` Fake-IP ranges; ordinary local and private-network
   targets remain blocked.
 - Any group member may trigger a normal Codex question after mentioning the bot.
-  Group sessions are restricted by developer instructions to Japanese learning
-  and course management. Unrelated requests and political, violent,
-  pornographic, or sexually explicit content receive an explicit refusal from
+  Group sessions support general questions, Japanese learning and course
+  management. Political, violent, pornographic, or sexually explicit content
+  receives an explicit refusal from
   Codex rather than being silently dropped; this is a semantic model decision,
   not a bridge keyword filter.
   Administrative slash commands, full-access mode, and direct local-path sends

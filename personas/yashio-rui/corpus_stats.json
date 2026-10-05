@@ -1,0 +1,79 @@
+{
+  "server": "cn",
+  "character_id": 30,
+  "attribution": "explicit_character_or_voice_id",
+  "interpretation": "Labels identify speakers, not emotional intent or addressees.",
+  "utterance_kind_method": "Parenthesis-prefixed text = inner_monologue; no alphanumeric characters = punctuation_only; remaining text = spoken_text. Textual heuristic, not audio verification.",
+  "surface_metrics_method": "Rui solo spoken_text only. Count dialogue events, not sentences. Character length excludes whitespace, includes punctuation. Literal counts count events containing a string, not syntax or occurrence frequency.",
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "Morfonica、前往光辉世界",
+      "scene_count": 20,
+      "all_talk_events": 1236,
+      "rui_solo_events": 126,
+      "rui_group_events": 0,
+      "rui_display_names": {
+        "？？？": 1,
+        "瑠唯": 125
+      },
+      "rui_unique_text_count": 121,
+      "rui_utterance_kinds": {
+        "punctuation_only": 6,
+        "spoken_text": 116,
+        "inner_monologue": 4
+      },
+      "surface_metrics": {
+        "spoken_text_events": 116,
+        "median_characters_per_event": 18.5,
+        "events_containing_literal": {
+          "仓田同学": 2,
+          "桐谷同学": 3,
+          "广町同学": 1,
+          "二叶同学": 2,
+          "如果": 2,
+          "不过": 1,
+          "只是": 4,
+          "应该": 3
+        },
+        "events_with_ellipsis": 23,
+        "events_with_exclamation": 0,
+        "events_with_tilde": 0
+      }
+    },
+    {
+      "chapter": 2,
+      "title": "fly with the night",
+      "scene_count": 15,
+      "all_talk_events": 878,
+      "rui_solo_events": 159,
+      "rui_group_events": 0,
+      "rui_display_names": {
+        "瑠唯": 159
+      },
+      "rui_unique_text_count": 146,
+      "rui_utterance_kinds": {
+        "spoken_text": 133,
+        "inner_monologue": 12,
+        "punctuation_only": 14
+      },
+      "surface_metrics": {
+        "spoken_text_events": 133,
+        "median_characters_per_event": 18,
+        "events_containing_literal": {
+          "仓田同学": 13,
+          "桐谷同学": 4,
+          "广町同学": 1,
+          "二叶同学": 0,
+          "如果": 12,
+          "不过": 6,
+          "只是": 9,
+          "应该": 9
+        },
+        "events_with_ellipsis": 42,
+        "events_with_exclamation": 0,
+        "events_with_tilde": 0
+      }
+    }
+  ]
+}

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
@@ -18,6 +20,7 @@ if str(CODEX_SRC) not in sys.path:
     sys.path.insert(0, str(CODEX_SRC))
 
 import codex_qq_bridge.x_monitor as x_monitor  # noqa: E402
+from codex_qq_bridge.codex_runtime import codex_subprocess_env  # noqa: E402
 from codex_qq_bridge.x_monitor import (  # noqa: E402
     GrammarPoint,
     MonitorStore,
@@ -54,6 +57,121 @@ def make_post(
         published_at="2026-08-25T12:34:40.000Z",
         image_urls=image_urls,
     )
+
+
+def test_codex_environment_uses_node_beside_npm_symlink(monkeypatch, tmp_path):
+    bin_dir = tmp_path / "node-install" / "bin"
+    bin_dir.mkdir(parents=True)
+    node = bin_dir / "node"
+    node.write_text('#!/bin/sh\nprintf "matching-node\\n"\n')
+    node.chmod(0o700)
+    npm_script = tmp_path / "codex.js"
+    npm_script.write_text("#!/usr/bin/env node\n")
+    npm_script.chmod(0o700)
+    codex = bin_dir / "codex"
+    codex.symlink_to(npm_script)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:1234")
+    monkeypatch.setenv("TMUX", "old-terminal")
+    monkeypatch.setenv("TMUX_PANE", "%1")
+
+    env = codex_subprocess_env(str(codex))
+    result = subprocess.run([str(codex), "--version"], env=env,
+                            capture_output=True, text=True, check=True)
+    assert result.stdout == "matching-node\n"
+    assert env["HTTPS_PROXY"] == "http://proxy.example:1234"
+    assert "TMUX" not in env and "TMUX_PANE" not in env
+    assert os.environ["PATH"] == "/usr/bin:/bin"
+    assert os.environ["TMUX"] == "old-terminal"
+    monkeypatch.setenv("PATH", str(bin_dir) + ":/usr/bin:/bin")
+    assert codex_subprocess_env("codex")["PATH"].split(":")[0] == str(bin_dir)
+
+
+def test_analysis_subprocess_gets_fixed_runtime_environment(monkeypatch, tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    codex = bin_dir / "codex"
+    codex.write_text("#!/bin/sh\n")
+    codex.chmod(0o700)
+    monkeypatch.setenv("CODEX_BIN", str(codex))
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+
+    async def spawn(*args, **kwargs):
+        assert kwargs["env"]["PATH"].split(":")[0] == str(bin_dir)
+        assert "--ephemeral" in args and "read-only" in args
+        result = Path(args[args.index("--output-last-message") + 1])
+
+        class Process:
+            returncode = 0
+
+            async def communicate(self, prompt):
+                assert "テスト投稿" in prompt.decode()
+                result.write_text(PostAnalysis("测试帖子", "", ()).to_json())
+                return b"", b""
+
+        return Process()
+
+    monkeypatch.setattr(x_monitor.asyncio, "create_subprocess_exec", spawn)
+    analysis = asyncio.run(x_monitor.analyze_post_with_codex(make_post(), timeout_seconds=30))
+    assert analysis.chinese_translation == "测试帖子"
+
+
+def test_analysis_failure_classifies_node_error_without_echoing_prompt(monkeypatch):
+    class Process:
+        returncode = 1
+
+        async def communicate(self, _prompt):
+            return b"", b"secret-prompt-and-token\nSyntaxError: Unexpected reserved word\n"
+
+    async def spawn(*_args, **_kwargs):
+        return Process()
+
+    monkeypatch.setattr(x_monitor.asyncio, "create_subprocess_exec", spawn)
+    with pytest.raises(RuntimeError, match="Node.js") as error:
+        asyncio.run(x_monitor.analyze_post_with_codex(make_post(), timeout_seconds=30))
+    assert "secret-prompt-and-token" not in str(error.value)
+
+
+def test_failed_analysis_is_retried_without_losing_pending_post(monkeypatch, tmp_path):
+    store = MonitorStore(tmp_path / "monitor.sqlite3")
+    store.observe(make_post("1"))
+    new_post = make_post("2")
+    attempts = 0
+    published = []
+
+    async def fetch(*_args, **_kwargs):
+        return new_post
+
+    async def analyze(*_args, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("Node.js incompatible")
+        return PostAnalysis("测试帖子", "", ())
+
+    async def publish(post, analysis, _store, **_kwargs):
+        published.append((post.post_id, analysis.chinese_translation))
+        return 1
+
+    monkeypatch.setattr(x_monitor, "fetch_first_post", fetch)
+    monkeypatch.setattr(x_monitor, "analyze_post_with_codex", analyze)
+    monkeypatch.setattr(x_monitor, "publish_learning_post", publish)
+
+    async def check():
+        return await x_monitor.check_once(
+            "AyAsA_violin", tmp_path / "browser", store.path,
+            notify=True, headless=True, timeout_seconds=30,
+        )
+
+    with pytest.raises(RuntimeError, match="Node.js"):
+        asyncio.run(check())
+    assert not published and store.load_analysis(new_post) is None
+    assert store.observe(new_post) == "pending"
+    assert asyncio.run(check())[1] == "pending"
+    assert published == [("2", "测试帖子")]
+    assert store.observe(new_post) == "unchanged"
+    asyncio.run(check())
+    assert attempts == 2 and len(published) == 1
 
 
 def test_parse_status_href_accepts_x_and_twitter_links():

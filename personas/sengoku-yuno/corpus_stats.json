@@ -1,0 +1,57 @@
+{
+  "locale": "zh-CN",
+  "character_id": 15,
+  "speaker_ids": {
+    "yuno": 17,
+    "adv_yuno": 488
+  },
+  "story_count": 24,
+  "all_text_events": 4685,
+  "yuno_solo_events": 505,
+  "yuno_group_events": 11,
+  "yuno_utterance_kinds": {
+    "spoken_text": 425,
+    "punctuation_only": 55,
+    "inner_monologue": 23,
+    "quoted_material": 2
+  },
+  "yuno_channels": {
+    "video_subtitle": 17,
+    "game_text": 488
+  },
+  "by_episode_kind": [
+    {
+      "kind": "main",
+      "story_count": 20,
+      "yuno_solo_events": 423
+    },
+    {
+      "kind": "another",
+      "story_count": 1,
+      "yuno_solo_events": 29
+    },
+    {
+      "kind": "extra",
+      "story_count": 3,
+      "yuno_solo_events": 53
+    }
+  ],
+  "surface_metrics": {
+    "scope": "solo spoken_text, playback events not sentences",
+    "median_characters_excluding_whitespace": 8,
+    "events_containing_literal": {
+      "我说": 1,
+      "算了": 5,
+      "麻烦": 3,
+      "吧": 51,
+      "呢": 9,
+      "宫永同学": 1,
+      "藤同学": 2,
+      "仲町同学": 3,
+      "峰月同学": 1
+    },
+    "events_with_ellipsis": 158,
+    "events_with_exclamation": 31
+  },
+  "utterance_kind_method": "chat kind first; parentheses prefix = inner_monologue; no alphanumeric = punctuation_only; remaining = spoken_text. Text convention, not audio verification."
+}

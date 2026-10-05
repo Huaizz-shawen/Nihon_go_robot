@@ -11,9 +11,10 @@ import asyncio
 import inspect
 import json
 import logging
-import os
 from collections.abc import Awaitable, Callable
 from typing import Any
+
+from .codex_runtime import codex_subprocess_env
 
 
 NotificationHandler = Callable[[str, dict[str, Any]], Awaitable[None] | None]
@@ -74,9 +75,7 @@ class AppServerClient:
             await self.stop()
         # Preserve HTTP(S)/ALL_PROXY for Codex and commands it executes. QQ uses
         # its own clients and disables environment proxy inheritance by default.
-        env = os.environ.copy()
-        env.pop("TMUX", None)
-        env.pop("TMUX_PANE", None)
+        env = codex_subprocess_env(self.codex_bin)
         self.process = await asyncio.create_subprocess_exec(
             self.codex_bin,
             "app-server",

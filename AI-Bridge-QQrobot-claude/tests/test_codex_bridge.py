@@ -48,6 +48,7 @@ class FakeQQ:
     def __init__(self) -> None:
         self.messages: list[tuple[str, str, dict[str, Any] | None]] = []
         self.media: list[dict[str, str]] = []
+        self.temp_dir: Path | None = None
         self.group_messages: list[tuple[str, str, str]] = []
         self.acked: list[str] = []
 
@@ -63,6 +64,17 @@ class FakeQQ:
     ) -> bool:
         self.group_messages.append((group_openid, content, msg_id))
         return True
+
+    async def fetch_attachment_image(self, url: str, declared_type: str, *, cache_dir=None) -> Path:
+        if "fail" in url:
+            raise ValueError("download rejected")
+        directory = cache_dir or self.temp_dir
+        if directory is None:
+            raise AssertionError("Image test must use its private temporary directory")
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / "test-image.png"
+        path.write_bytes(b"image-bytes")
+        return path
 
     async def fetch_attachment_data_url(self, url: str, declared_type: str) -> str:
         if "fail" in url:
@@ -156,6 +168,7 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.env = self.root / ".env"
         self.env.write_text("APP_ID=test\nCLIENT_SECRET=test\nMASTER_OPENID=\n", encoding="utf-8")
         self.qq = FakeQQ()
+        self.qq.temp_dir = self.root
         self.app = FakeApp()
         self.bridge = CodexQQBridge(
             qq=self.qq,
@@ -511,14 +524,14 @@ class CodexBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await future, "side answer")
         self.assertEqual(self.qq.messages, [])
 
-    async def test_remote_image_is_inlined_before_turn_start(self) -> None:
+    async def test_remote_image_is_local_before_turn_start(self) -> None:
         inputs = await prepare_attachment_inputs(
             "描述图片",
             [{"url": "https://cdn.example/image.png", "content_type": "image/png"}],
             self.qq,
         )
-        self.assertEqual([item["type"] for item in inputs], ["text", "image"])
-        self.assertTrue(inputs[1]["url"].startswith("data:image/png;base64,"))
+        self.assertEqual([item["type"] for item in inputs], ["text", "localImage"])
+        self.assertEqual(Path(inputs[1]["path"]).read_bytes(), b"image-bytes")
 
     def test_qq_http_client_ignores_environment_proxy_by_default(self) -> None:
         qq = QQApi("app", "secret")
